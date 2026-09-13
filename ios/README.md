@@ -253,23 +253,54 @@ fundamental. Todo se normaliza al 55%, por debajo de los sonidos del sistema.
 Para cambiarlos, se tocan las frecuencias y los tiempos en el generador y se
 vuelve a ejecutar. No hace falta ningún programa de audio.
 
-## Cuántas veces suena
+## Qué se avisa, y cuántas veces
 
 El sonido bonito no arregla nada si llegan veinte. Lo que evita que la gente
 acabe apagando las notificaciones de la app —y se pierda con ellas la que sí
 importaba— es mandar menos:
 
+- **Solo lo que ha pasado de verdad.** La lista de la app enseña cualquier
+  movimiento de una décima, que es lo que se quiere en un marcador en directo.
+  Un aviso, no: «+0.2» son dos yardas de carrera y no informa de nada. Hacen
+  falta **2 puntos** de uno de los tuyos —una recepción larga, un field goal, un
+  touchdown— y **4** de uno del rival, que es un touchdown o nada.
 - **Una notificación por tanda, no una por jugador.** Si entre dos lecturas
-  anotan tres de los tuyos, llega un resumen: «3 anotaciones · Chase +12.4 ·
-  Kittle +6.0», con la foto del que más sumó.
+  anotan tres de los tuyos, llega un resumen con la foto del que más sumó.
 - **Noventa segundos de silencio entre sonidos.** Los avisos siguen llegando,
   pero callados. La única excepción es un parte de lesión a peor, que es raro y
   no espera.
 - **Agrupadas por tema** (`threadIdentifier`): anotaciones, marcador, lesiones y
   noticias se apilan cada una en su montón en la pantalla de bloqueo.
-- **Interrupción según lo que sea.** Un touchdown (≥5 puntos) y un
-  adelantamiento son `timeSensitive` y atraviesan un modo de concentración; una
-  recepción de 1.4 es `active`; una noticia es `passive` y ni siquiera suena.
+- **Interrupción según lo que sea.** Un touchdown tuyo (≥5 puntos) y un
+  adelantamiento son `timeSensitive` y atraviesan un modo de concentración; lo
+  demás es `active`; una noticia es `passive` y ni siquiera suena.
+
+### Y que se entienda de un vistazo
+
+Un aviso se lee en la pantalla de bloqueo, de reojo, sin abrir nada. Tiene que
+contestar tres cosas: **qué ha pasado**, **de quién** y **cómo voy**.
+
+```
+Justin Herbert  +6.4          ← quién y cuánto
+Vas ganando 94.7 – 69.2       ← lo único que de verdad se quiere saber
+25/33 · 245 yds · 2 TD · lleva 18.2
+```
+
+Lo del rival va marcado —`Rival · Bijan Robinson +6.5`— porque lo tuyo es el
+caso normal y no necesita etiqueta; lo que hay que distinguir es la excepción.
+
+Y cuando son varias:
+
+```
+3 anotaciones
+Vas ganando 94.7 – 69.2
+Tuyas: Herbert +6.4, Hall +3.1
+Del rival: Bijan +4.7
+```
+
+Los tuyos y los del rival en líneas distintas, cada uno con su nombre. Antes
+iban todos en la misma lista sin decir de quién era cada cual, y el recuento
+—«1 tuyas»— ni siquiera concordaba.
 
 ## Cuando anota uno de los tuyos
 

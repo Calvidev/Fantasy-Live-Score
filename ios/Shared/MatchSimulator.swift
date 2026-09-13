@@ -28,7 +28,9 @@ enum MatchSimulator {
             switch self {
             case .touchdown: return "Touchdown (+6)"
             case .fieldGoal: return "Field goal (+3)"
-            case .reception: return "Recepción (+1.4)"
+            // Por debajo del mínimo para avisar: sirve justo para comprobar
+            // que se mueve el marcador y NO llega notificación.
+            case .reception: return "Recepción (+1.4 · sin aviso)"
             }
         }
     }

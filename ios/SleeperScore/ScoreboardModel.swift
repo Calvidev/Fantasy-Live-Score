@@ -133,7 +133,7 @@ final class ScoreboardModel: ObservableObject {
         }
 
         live.update(with: actualizado, play: anotaciones.first)
-        await live.notify(plays: anotaciones)
+        await live.notify(plays: anotaciones, in: actualizado)
     }
 
     /// Yardas y proyecciones de la jornada. Van en llamadas aparte del

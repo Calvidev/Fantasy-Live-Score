@@ -53,32 +53,74 @@ enum Notifier {
 
     // MARK: - Anotación
 
+    /// Lo mínimo que tiene que sumar uno de los tuyos para merecer un aviso.
+    ///
+    /// El marcador de la app enseña cualquier movimiento de una décima, que es
+    /// lo que se quiere en una lista en directo. Pero un aviso que dice
+    /// "+0.2" —dos yardas de carrera— no informa de nada y gasta la paciencia
+    /// del que lo recibe. Dos puntos es una recepción larga, un field goal,
+    /// un touchdown: algo que ha pasado de verdad.
+    private static let minimoMio = 2.0
+    /// Del rival solo interesa lo gordo: un touchdown, un field goal largo.
+    private static let minimoRival = 4.0
+
     /// Un aviso por tanda, no uno por jugador. Si tres de los tuyos anotan
     /// entre dos lecturas, tres notificaciones seguidas son ruido.
-    static func plays(_ plays: [ScoringPlay]) async {
-        guard !plays.isEmpty else { return }
-        if plays.count == 1 {
-            await play(plays[0])
+    static func plays(_ plays: [ScoringPlay], in snapshot: MatchupSnapshot) async {
+        let dignas = plays.filter { $0.delta >= ($0.isMine ? minimoMio : minimoRival) }
+        guard !dignas.isEmpty else { return }
+        if dignas.count == 1 {
+            await play(dignas[0], in: snapshot)
         } else {
-            await resumen(plays)
+            await resumen(dignas, in: snapshot)
         }
     }
 
-    private static func resumen(_ plays: [ScoringPlay]) async {
+    /// "Vas ganando 94.7 – 69.2". Sin esto, un aviso de anotación no dice lo
+    /// único que de verdad se quiere saber al mirar el teléfono: cómo voy.
+    private static func marcador(_ snapshot: MatchupSnapshot) -> String {
+        let mios = snapshot.me.points.fantasyPoints
+        let suyos = snapshot.opponentPoints.fantasyPoints
+        guard snapshot.opponent != nil else {
+            return String(localized: "Llevas \(mios)")
+        }
+        if abs(snapshot.difference) < 0.05 {
+            return String(localized: "Empate a \(mios)")
+        }
+        return snapshot.isLeading
+            ? String(localized: "Vas ganando \(mios) – \(suyos)")
+            : String(localized: "Vas perdiendo \(mios) – \(suyos)")
+    }
+
+    private static func resumen(_ plays: [ScoringPlay], in snapshot: MatchupSnapshot) async {
         guard await authorized() else { return }
-        let mias = plays.filter(\.isMine).count
+        let mias = plays.filter(\.isMine)
+        let suyas = plays.filter { !$0.isMine }
 
         let contenido = UNMutableNotificationContent()
-        contenido.title = String(localized: "\(plays.count) anotaciones")
-        contenido.subtitle = mias == plays.count
-            ? String(localized: "Todas tuyas")
-            : String(localized: "\(mias) tuyas")
-        contenido.body = plays
-            .prefix(4)
-            .map { "\($0.name) +\($0.delta.fantasyPoints)" }
-            .joined(separator: " · ")
+        // Sin contar "cuántas son tuyas" aparte: se ve en el cuerpo, y así no
+        // hay que escoger entre "1 tuyas" y "2 tuyas".
+        if suyas.isEmpty {
+            contenido.title = String(localized: "\(plays.count) anotaciones tuyas")
+        } else if mias.isEmpty {
+            contenido.title = String(localized: "\(plays.count) anotaciones del rival")
+        } else {
+            contenido.title = String(localized: "\(plays.count) anotaciones")
+        }
+        contenido.subtitle = marcador(snapshot)
+
+        var partes: [String] = []
+        if !mias.isEmpty {
+            partes.append(String(localized: "Tuyas: \(lista(mias))"))
+        }
+        if !suyas.isEmpty {
+            partes.append(String(localized: "Del rival: \(lista(suyas))"))
+        }
+        contenido.body = partes.joined(separator: "\n")
+
         contenido.sound = sonido(Sonido.anotacion)
-        contenido.interruptionLevel = .active
+        let hayTouchdownMio = mias.contains(where: { $0.delta >= 5 })
+        contenido.interruptionLevel = hayTouchdownMio ? .timeSensitive : .active
         contenido.threadIdentifier = "anotaciones"
 
         // La foto de la jugada más gorda representa a la tanda.
@@ -91,22 +133,38 @@ enum Notifier {
         await add(contenido, id: "resumen-\(Int(Date().timeIntervalSince1970))")
     }
 
-    static func play(_ play: ScoringPlay) async {
+    /// "Herbert +6.4, Hall +3.1". Como mucho tres, que es lo que cabe leer.
+    private static func lista(_ plays: [ScoringPlay]) -> String {
+        let nombres = plays
+            .prefix(3)
+            .map { "\($0.name) \($0.delta.signedFantasyPoints)" }
+            .joined(separator: ", ")
+        let restantes = plays.count - 3
+        guard restantes > 0 else { return nombres }
+        return String(localized: "\(nombres) y \(restantes) más")
+    }
+
+    static func play(_ play: ScoringPlay, in snapshot: MatchupSnapshot) async {
         guard await authorized() else { return }
 
         let contenido = UNMutableNotificationContent()
+        // El nombre y lo que acaba de sumar, que es lo que se lee de un
+        // vistazo. Lo del rival lleva marca; lo tuyo no la necesita.
+        let titular = "\(play.name)  \(play.delta.signedFantasyPoints)"
         contenido.title = play.isMine
-            ? String(localized: "Anotó tu jugador")
-            : String(localized: "Anotó el rival")
-        contenido.subtitle = String(
-            localized: "+\(play.delta.fantasyPoints) pts · \(play.total.fantasyPoints) en total"
-        )
+            ? titular
+            : String(localized: "Rival · \(titular)")
+        contenido.subtitle = marcador(snapshot)
+
+        // Qué hizo, y cuánto lleva en la jornada.
         let detalle = play.stats ?? play.subtitle
-        contenido.body = detalle.isEmpty ? play.name : "\(play.name) — \(detalle)"
+        let total = String(localized: "lleva \(play.total.fantasyPoints)")
+        contenido.body = detalle.isEmpty ? total : "\(detalle) · \(total)"
+
         contenido.sound = sonido(Sonido.anotacion)
-        // Solo un touchdown (seis puntos y pico) merece romper un modo de
-        // concentración. Una recepción de 1.4 no.
-        contenido.interruptionLevel = play.delta >= 5 ? .timeSensitive : .active
+        // Solo un touchdown (seis puntos y pico) de los tuyos merece romper un
+        // modo de concentración.
+        contenido.interruptionLevel = (play.isMine && play.delta >= 5) ? .timeSensitive : .active
         contenido.threadIdentifier = "anotaciones"
 
         if let adjunto = await attachment(
