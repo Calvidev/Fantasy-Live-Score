@@ -108,7 +108,7 @@ pago, cambia `defaultLeagueID` y `defaultRosterID` en `Shared/AppConfig.swift`.
 
 | Pantalla / tamaño | Qué enseña |
 | --- | --- |
-| App | Marcador, **probabilidad de ganar**, proyección, puntos dejados en el banquillo, últimas anotaciones y la alineación con foto y puntos |
+| App | Marcador, **probabilidad de ganar**, proyección, últimas anotaciones, la alineación con foto y puntos, y los puntos dejados en el banquillo |
 | Clasificación | La tabla de la liga con récord y puntos a favor y en contra |
 | Mi temporada | Puntos por jornada en gráfica, récord, media, mejor y peor semana |
 | Agentes libres | Quién está libre en tu liga, por proyección y por lo que se está fichando |

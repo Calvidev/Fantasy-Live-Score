@@ -96,9 +96,6 @@ struct LeaguePage: View {
                     if esLaActiva {
                         LiveActivityButton()
                     }
-                    if let informe = snapshot.benchReport, !informe.perfect {
-                        BenchCard(report: informe)
-                    }
                     if !snapshot.plays.isEmpty {
                         RecentPlaysSection(plays: snapshot.plays)
                             .transition(.move(edge: .top).combined(with: .opacity))
@@ -110,6 +107,12 @@ struct LeaguePage: View {
                         LineupSection(rows: snapshot.lineup)
                     } else {
                         Hint(text: "Cuando arranque la jornada aparecerá aquí la alineación titular con los puntos de cada jugador.")
+                    }
+                    // El banquillo va al final: es un lamento, no una noticia.
+                    // Primero lo que está pasando, luego quién juega, y solo
+                    // después lo que se dejó fuera.
+                    if let informe = snapshot.benchReport, !informe.perfect {
+                        BenchCard(report: informe)
                     }
                 } else if model.isLoading {
                     ProgressView()
