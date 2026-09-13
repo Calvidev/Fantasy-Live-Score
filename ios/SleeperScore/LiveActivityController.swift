@@ -1,5 +1,6 @@
 //  LiveActivityController.swift
-//  Enciende, actualiza y apaga la Live Activity, y avisa cuando alguien anota.
+//  Enciende, actualiza y apaga las Live Activities —una por liga— y avisa
+//  cuando alguien anota.
 //
 //  Límite que conviene tener presente: una Live Activity no se refresca sola
 //  como un widget. Se actualiza cuando la app puede hacerlo (abierta, o en los
@@ -13,22 +14,32 @@ import UserNotifications
 
 @MainActor
 final class LiveActivityController: ObservableObject {
-    /// Una sola por proceso: el sistema solo admite una actividad de este tipo
-    /// y tanto el marcador como la pantalla la manejan.
+    /// Uno por proceso, pero **una actividad por liga**: iOS admite varias a la
+    /// vez del mismo tipo. En la pantalla de bloqueo se apilan una debajo de
+    /// otra; en la Dynamic Island se ve una cada vez y el sistema las va
+    /// rotando. Quien sigue dos equipos un domingo quiere ver los dos.
     static let shared = LiveActivityController()
 
-    @Published private(set) var isRunning = false
+    /// Las ligas que se están siguiendo ahora mismo. Es `@Published` para que
+    /// el botón de cada página sepa si le toca decir "seguir" o "dejar de
+    /// seguir" sin preguntar por la actividad de otra liga.
+    @Published private(set) var runningLeagueIDs: Set<String> = []
     @Published private(set) var lastError: String?
 
-    private var activity: Activity<MatchupActivityAttributes>?
+    private var activities: [String: Activity<MatchupActivityAttributes>] = [:]
     /// Sin esto, una notificación disparada con la app en primer plano no se
     /// ve ni suena — que es justo lo que pasa al probar el simulador.
     private let presenter = ForegroundNotificationPresenter()
 
     init() {
-        // Al arrancar puede haber una actividad viva de una sesión anterior.
-        activity = Activity<MatchupActivityAttributes>.activities.first
-        isRunning = activity != nil
+        // Al arrancar puede haber actividades vivas de una sesión anterior.
+        for viva in Activity<MatchupActivityAttributes>.activities {
+            // Las encendidas por una versión anterior no traen liga; se
+            // adoptan bajo su nombre para poder apagarlas desde el botón.
+            let clave = viva.attributes.leagueID ?? viva.attributes.leagueName
+            activities[clave] = viva
+        }
+        runningLeagueIDs = Set(activities.keys)
         UNUserNotificationCenter.current().delegate = presenter
     }
 
@@ -36,40 +47,53 @@ final class LiveActivityController: ObservableObject {
         ActivityAuthorizationInfo().areActivitiesEnabled
     }
 
+    /// Si se está siguiendo esta liga en concreto.
+    func isRunning(for leagueID: String) -> Bool {
+        runningLeagueIDs.contains(leagueID)
+    }
+
+    /// Si se está siguiendo alguna.
+    var isRunning: Bool { !runningLeagueIDs.isEmpty }
+
     // MARK: - Ciclo de vida
 
-    func start(with snapshot: MatchupSnapshot) {
+    func start(for leagueID: String, with snapshot: MatchupSnapshot) {
         guard areActivitiesEnabled else {
             lastError = "Las Live Activities están desactivadas para esta app en Ajustes."
             return
         }
-        guard activity == nil else {
-            update(with: snapshot)
+        guard activities[leagueID] == nil else {
+            update(for: leagueID, with: snapshot)
             return
         }
         do {
-            activity = try Activity.request(
-                attributes: snapshot.activityAttributes,
+            activities[leagueID] = try Activity.request(
+                attributes: snapshot.activityAttributes(leagueID: leagueID),
                 content: ActivityContent(state: snapshot.activityState(), staleDate: nil),
                 pushType: nil  // sin push: se actualiza desde la app
             )
-            isRunning = true
+            runningLeagueIDs.insert(leagueID)
             lastError = nil
         } catch {
-            lastError = error.localizedDescription
+            // iOS no publica cuántas admite a la vez: depende del sistema y del
+            // momento. Cuando dice que no, se dice con palabras en vez de
+            // enseñar el error de ActivityKit, que no significa nada para nadie.
+            lastError = runningLeagueIDs.isEmpty
+                ? error.localizedDescription
+                : "iOS no deja seguir más partidos a la vez. Deja de seguir alguno y vuelve a intentarlo."
         }
     }
 
-    func update(with snapshot: MatchupSnapshot, play: ScoringPlay? = nil) {
-        guard let activity else { return }
+    func update(for leagueID: String, with snapshot: MatchupSnapshot, play: ScoringPlay? = nil) {
+        guard let activity = activities[leagueID] else { return }
 
         // Los nombres de los equipos y la liga son fijos en una Live Activity.
-        // Si el usuario ha cambiado de liga, hay que rehacerla o enseñaría el
-        // marcador de una con el título de otra.
+        // Si han cambiado (otra jornada, un cambio de nombre), hay que rehacerla
+        // o enseñaría el marcador de una con el título de otra.
         if activity.attributes.leagueName != snapshot.leagueName
             || activity.attributes.myTeam != snapshot.me.name {
             Task {
-                await restart(with: snapshot)
+                await restart(for: leagueID, with: snapshot)
             }
             return
         }
@@ -87,18 +111,26 @@ final class LiveActivityController: ObservableObject {
         }
     }
 
-    func stop() async {
-        guard let viva = activity else { return }
+    func stop(for leagueID: String) async {
+        guard let viva = activities[leagueID] else { return }
         // Primero el estado, luego el trabajo: si no, el botón se queda con la
         // cara de "encendido" hasta que el sistema termine de cerrarla.
-        activity = nil
-        isRunning = false
+        activities[leagueID] = nil
+        runningLeagueIDs.remove(leagueID)
         await viva.end(nil, dismissalPolicy: .immediate)
     }
 
-    private func restart(with snapshot: MatchupSnapshot) async {
-        await stop()
-        start(with: snapshot)
+    func stopAll() async {
+        // Las claves aparte: `stop(for:)` modifica el diccionario, y recorrer
+        // una vista de sus claves mientras se borra de él no es seguro.
+        for clave in Array(activities.keys) {
+            await stop(for: clave)
+        }
+    }
+
+    private func restart(for leagueID: String, with snapshot: MatchupSnapshot) async {
+        await stop(for: leagueID)
+        start(for: leagueID, with: snapshot)
     }
 
     // MARK: - Avisos
@@ -107,8 +139,10 @@ final class LiveActivityController: ObservableObject {
         await Notifier.requestPermission()
     }
 
-    func notify(plays: [ScoringPlay], in snapshot: MatchupSnapshot) async {
-        await Notifier.plays(plays, in: snapshot)
+    func notify(
+        plays: [ScoringPlay], in snapshot: MatchupSnapshot, league: LeagueConfig? = nil
+    ) async {
+        await Notifier.plays(plays, in: snapshot, league: league)
     }
 }
 

@@ -130,6 +130,10 @@ Cada liga guarda su propio marcador, así que al deslizar se ve al instante lo
 Cada widget puede seguir **una liga distinta**: mantén pulsado el widget >
 Editar widget > Liga. Sin elegir nada sigue la liga activa en la app.
 
+Y se puede **seguir más de una liga a la vez** en la pantalla de bloqueo, con una
+Live Activity por liga. El refresco en segundo plano ya miraba todas tus ligas;
+lo que falta lo cuenta [Varias ligas a la vez](#varias-ligas-a-la-vez).
+
 La app se refresca sola cada minuto mientras la tienes abierta, y al tirar hacia
 abajo. El widget pide refresco cada 10 minutos si hay partido en marcha y cada
 hora si no; **quien decide de verdad cuándo refrescar es iOS**, así que en pleno
@@ -163,13 +167,38 @@ hay que cambiarla en la misma pantalla y en el registro de la app.
 Botón **"Seguir en la pantalla de bloqueo"** bajo el marcador. Enciende una Live
 Activity con los dos equipos, la barra, la diferencia y —cuando alguien anota— la
 foto, el nombre y los puntos de la jugada, tanto en la pantalla de bloqueo como
-en la Dynamic Island. Además suena una notificación por cada anotación (hasta
-tres por refresco, para no convertirlo en una metralleta).
+en la Dynamic Island.
 
 Las anotaciones se deducen restando: Sleeper no avisa de las jugadas, da los
 puntos acumulados de cada titular, y `ScoringDetector` compara la lectura nueva
 con la anterior. Diferencias menores de 0,1 puntos se ignoran, que son las
 correcciones de estadísticas.
+
+### Varias ligas a la vez
+
+**Una Live Activity por liga.** iOS admite varias del mismo tipo: el botón está
+en la página de cada liga y cada uno enciende y apaga la suya. En la pantalla de
+bloqueo se apilan una debajo de otra; en la Dynamic Island se ve una cada vez y
+el sistema las va rotando.
+
+Eso obliga a tres cosas que no eran obvias:
+
+- **La actividad tiene que saber de qué liga es.** Los atributos llevan ahora el
+  identificador de la liga, y no solo su nombre, para poder reencontrarla al
+  reabrir la app y apagar la que toca.
+- **Hay que refrescar las ligas que no estás mirando.** La app solo descargaba
+  la liga en pantalla, así que la segunda Live Activity se quedaba con el
+  marcador congelado hasta que deslizabas hasta ella. Ahora, en cada ciclo, se
+  refresca además toda liga que se esté siguiendo. Una Live Activity que no se
+  actualiza es peor que no tenerla.
+- **iOS puede decir que no.** No publica cuántas admite a la vez —depende del
+  sistema y del momento, y devuelve `targetMaximumExceeded`—, así que cuando se
+  niega se dice con palabras en vez de enseñar el error de ActivityKit.
+
+Los avisos también se separan por liga: llevan su nombre delante del marcador
+(«Bratva Fantasy · Vas ganando 94.7 – 69.2») en cuanto hay más de una, y se
+agrupan por liga **y** por tema en la pantalla de bloqueo, así que dos ligas no
+se mezclan en un mismo montón. Con una sola liga no aparece el nombre: sobra.
 
 **La limitación importante**: una Live Activity no se refresca sola como un
 widget. Se actualiza cuando la app puede hacerlo (abierta, o en los ratos de

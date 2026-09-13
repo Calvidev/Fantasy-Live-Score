@@ -69,6 +69,11 @@ struct MatchupActivityAttributes: ActivityAttributes {
     var week: Int
     var myTeam: String
     var opponentTeam: String
+    /// De qué liga es esta actividad. Se puede seguir más de un partido a la
+    /// vez —una actividad por liga— y al volver a abrir la app hay que saber
+    /// cuál es cuál. Opcional porque una actividad encendida por la versión
+    /// anterior sigue viva y no lo trae.
+    var leagueID: String?
     /// Las fotos no caben en el estado (4 KB), así que viajan las direcciones
     /// y la vista lee el archivo que la app dejó en el grupo de apps.
     var myAvatarURL: String?
@@ -77,12 +82,13 @@ struct MatchupActivityAttributes: ActivityAttributes {
 
 extension MatchupSnapshot {
     /// Lo fijo de la Live Activity a partir del marcador.
-    var activityAttributes: MatchupActivityAttributes {
+    func activityAttributes(leagueID: String) -> MatchupActivityAttributes {
         MatchupActivityAttributes(
             leagueName: leagueName,
             week: week,
             myTeam: me.name,
             opponentTeam: opponent?.name ?? "Sin rival",
+            leagueID: leagueID,
             myAvatarURL: me.avatarURL?.absoluteString,
             opponentAvatarURL: opponent?.avatarURL?.absoluteString
         )

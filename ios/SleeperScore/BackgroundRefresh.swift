@@ -55,19 +55,26 @@ enum BackgroundRefresh {
 
         // Todas las ligas, no solo la que estés mirando: si sigues dos equipos,
         // quieres enterarte de los dos.
-        var ultimo: MatchupSnapshot?
+        var frescos: [(LeagueConfig, MatchupSnapshot)] = []
         for liga in libro.leagues where liga.isComplete {
             guard let fresco = await refreshLeague(liga) else { continue }
-            ultimo = fresco
+            frescos.append((liga, fresco))
         }
+        guard !frescos.isEmpty else { return }
         WidgetCenter.shared.reloadAllTimelines()
 
         // El parte de lesiones cambia mucho más despacio que el marcador, así
         // que solo se mira cuando el catálogo ya toca renovarse.
-        if let ultimo, await PlayerCatalog.shared.isStale {
-            let catalogo = await PlayerCatalog.shared.refreshIfNeeded()
-            for cambio in InjuryWatcher.changes(in: ultimo, catalog: catalogo).prefix(3) {
-                await Notifier.injury(cambio)
+        //
+        // Y se mira en todas las ligas. Antes se miraba solo en la última que
+        // se hubiera descargado, así que con dos ligas te enterabas de las
+        // lesiones de una y de la otra nunca — dependiendo del orden del
+        // archivo, además, que no es algo que el usuario pueda ver.
+        guard await PlayerCatalog.shared.isStale else { return }
+        let catalogo = await PlayerCatalog.shared.refreshIfNeeded()
+        for (liga, fresco) in frescos {
+            for cambio in InjuryWatcher.changes(in: fresco, catalog: catalogo).prefix(3) {
+                await Notifier.injury(cambio, league: liga)
             }
         }
     }
@@ -81,12 +88,13 @@ enum BackgroundRefresh {
         fresco.recentPlays = Array((anotaciones + (anterior?.plays ?? [])).prefix(6))
         SharedStore.cache(fresco, for: league)
 
-        await Notifier.plays(anotaciones, in: fresco)
+        await Notifier.plays(anotaciones, in: fresco, league: league)
         if let anterior, anterior.opponent != nil, anterior.isLeading != fresco.isLeading {
             await Notifier.leadChange(
                 tookLead: fresco.isLeading,
                 difference: fresco.difference,
-                opponent: fresco.opponent?.name ?? "el rival"
+                opponent: fresco.opponent?.name ?? "el rival",
+                league: league
             )
         }
         return fresco

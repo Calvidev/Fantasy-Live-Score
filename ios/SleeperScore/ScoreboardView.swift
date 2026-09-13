@@ -93,9 +93,7 @@ struct LeaguePage: View {
                         }
                         ShareScoreButton(snapshot: snapshot)
                     }
-                    if esLaActiva {
-                        LiveActivityButton()
-                    }
+                    LiveActivityButton(league: league)
                     if !snapshot.plays.isEmpty {
                         RecentPlaysSection(plays: snapshot.plays)
                             .transition(.move(edge: .top).combined(with: .opacity))
@@ -329,35 +327,41 @@ struct BenchCard: View {
 
 /// Encender el seguimiento en la pantalla de bloqueo y la Dynamic Island.
 struct LiveActivityButton: View {
+    /// Cada página tiene su botón: se puede seguir más de una liga a la vez y
+    /// el botón de una no debe encenderse porque se siga otra.
+    var league: LeagueConfig
+
     @EnvironmentObject private var model: ScoreboardModel
     /// Se observa el controlador directamente: es quien sabe si la actividad
-    /// está viva, y su `isRunning` cambia después de que el sistema la cierre.
+    /// está viva, y su estado cambia después de que el sistema la cierre.
     @ObservedObject private var live = LiveActivityController.shared
+
+    private var siguiendo: Bool { live.isRunning(for: league.id) }
 
     var body: some View {
         if live.areActivitiesEnabled {
             Button {
-                if live.isRunning {
-                    Task { await model.stopLiveActivity() }
+                if siguiendo {
+                    Task { await model.stopLiveActivity(for: league) }
                 } else {
-                    Task { await model.startLiveActivity() }
+                    Task { await model.startLiveActivity(for: league) }
                 }
             } label: {
                 Label(
-                    live.isRunning
+                    siguiendo
                         ? "Dejar de seguir el partido"
                         : "Seguir en la pantalla de bloqueo",
-                    systemImage: live.isRunning ? "stop.circle" : "bolt.badge.clock"
+                    systemImage: siguiendo ? "stop.circle" : "bolt.badge.clock"
                 )
                 .font(.system(size: 13, weight: .medium))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 11)
                 .background(
-                    live.isRunning ? Theme.pill : Theme.accent.opacity(0.16),
+                    siguiendo ? Theme.pill : Theme.accent.opacity(0.16),
                     in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                 )
-                .foregroundStyle(live.isRunning ? Color.white.opacity(0.7) : Theme.accent)
-                .animation(.easeInOut(duration: 0.2), value: live.isRunning)
+                .foregroundStyle(siguiendo ? Color.white.opacity(0.7) : Theme.accent)
+                .animation(.easeInOut(duration: 0.2), value: siguiendo)
             }
             .buttonStyle(.plain)
         }

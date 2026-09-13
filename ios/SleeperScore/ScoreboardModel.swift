@@ -69,10 +69,11 @@ final class ScoreboardModel: ObservableObject {
 
         do {
             let fresh = try await service.snapshot(for: config)
-            await apply(fresh)
+            await apply(fresh, for: config)
             lastError = nil
             Task { await syncWeekStats(week: fresh.week) }
             Task { await syncNews(for: fresh) }
+            await refreshFollowedLeagues()
         } catch {
             lastError = error.localizedDescription
             // Si no había nada en pantalla, al menos se enseña lo guardado.
@@ -84,20 +85,23 @@ final class ScoreboardModel: ObservableObject {
     /// Todo marcador nuevo entra por aquí, venga de la red o del simulador:
     /// se detectan las anotaciones, se guarda, se avisa a los widgets, a la
     /// Live Activity y al usuario.
-    private func apply(_ fresh: MatchupSnapshot) async {
-        let anterior = snapshot
+    private func apply(_ fresh: MatchupSnapshot, for league: LeagueConfig? = nil) async {
+        // Sin liga explícita es la que se está mirando: así lo llaman el
+        // refresco normal y el simulador.
+        let league = league ?? config
+        let anterior = snapshots[league.id]
         var actualizado = fresh
 
         // Lo que ha pasado desde la última lectura: quién ha anotado.
-        let anotaciones = ScoringDetector.plays(previous: snapshot, current: fresh)
-        actualizado.recentPlays = Array((anotaciones + (snapshot?.plays ?? [])).prefix(6))
+        let anotaciones = ScoringDetector.plays(previous: anterior, current: fresh)
+        actualizado.recentPlays = Array((anotaciones + (anterior?.plays ?? [])).prefix(6))
 
         let cambioAlgo = anterior?.me.points != actualizado.me.points
             || anterior?.opponentPoints != actualizado.opponentPoints
             || !anotaciones.isEmpty
 
-        snapshot = actualizado
-        SharedStore.cache(actualizado, for: config)
+        snapshots[league.id] = actualizado
+        SharedStore.cache(actualizado, for: league)
         // iOS raciona las recargas de widget: pedirlas cada minuto sin que haya
         // cambiado nada agota el presupuesto y luego no recarga cuando importa.
         if cambioAlgo {
@@ -113,27 +117,47 @@ final class ScoreboardModel: ObservableObject {
             await Notifier.leadChange(
                 tookLead: actualizado.isLeading,
                 difference: actualizado.difference,
-                opponent: actualizado.opponent?.name ?? "el rival"
+                opponent: actualizado.opponent?.name ?? "el rival",
+                league: league
             )
         }
 
-        // Celebrar solo lo tuyo: que anote el rival no se festeja.
-        if let mia = anotaciones.first(where: { $0.isMine }) {
+        // Celebrar solo lo tuyo, y solo en la liga que se está mirando: una
+        // explosión por algo que pasó en otra pestaña no se entiende.
+        if league.id == config.id, let mia = anotaciones.first(where: { $0.isMine }) {
             celebrationID = mia.id
         }
 
-        // Si el partido ya se mueve y no hay actividad encendida, se enciende
-        // sola. Solo funciona con la app abierta: iOS no permite arrancar una
-        // Live Activity desde segundo plano sin push.
+        // Si el partido ya se mueve y esta liga no se está siguiendo, se
+        // enciende sola. Solo funciona con la app abierta: iOS no permite
+        // arrancar una Live Activity desde segundo plano sin push.
         if SharedStore.autoStartLiveActivity,
-           !live.isRunning,
+           !live.isRunning(for: league.id),
            actualizado.looksLive,
            actualizado.opponent != nil {
-            live.start(with: actualizado)
+            live.start(for: league.id, with: actualizado)
         }
 
-        live.update(with: actualizado, play: anotaciones.first)
-        await live.notify(plays: anotaciones, in: actualizado)
+        live.update(for: league.id, with: actualizado, play: anotaciones.first)
+        await live.notify(plays: anotaciones, in: actualizado, league: league)
+    }
+
+    /// Las ligas que se están siguiendo en la pantalla de bloqueo pero no se
+    /// están mirando.
+    ///
+    /// Sin esto, encender el seguimiento de dos ligas no servía de nada: solo
+    /// se refrescaba la que estuviera en pantalla, y la otra se quedaba con el
+    /// marcador congelado hasta que deslizabas hasta ella. Una Live Activity
+    /// que no se actualiza es peor que no tenerla.
+    private func refreshFollowedLeagues() async {
+        let activa = config.id
+        let pendientes = book.leagues.filter {
+            $0.isComplete && $0.id != activa && live.isRunning(for: $0.id)
+        }
+        for liga in pendientes {
+            guard let fresco = try? await service.snapshot(for: liga) else { continue }
+            await apply(fresco, for: liga)
+        }
     }
 
     /// Yardas y proyecciones de la jornada. Van en llamadas aparte del
@@ -179,7 +203,7 @@ final class ScoreboardModel: ObservableObject {
             let nombre = noticia.playerIDs
                 .compactMap { catalogo[$0]?.name }
                 .first
-            await Notifier.news(noticia, playerName: nombre)
+            await Notifier.news(noticia, playerName: nombre, league: config)
         }
     }
 
@@ -249,12 +273,14 @@ final class ScoreboardModel: ObservableObject {
         await checkInjuries(with: catalogo)
     }
 
-    /// Avisa de los cambios en el parte de lesiones de los jugadores que ves.
+    /// Avisa de los cambios en el parte de lesiones de los jugadores que ves,
+    /// en todas tus ligas y no solo en la que tengas abierta.
     private func checkInjuries(with catalog: [String: CatalogPlayer]) async {
-        guard let actual = snapshot else { return }
-        let cambios = InjuryWatcher.changes(in: actual, catalog: catalog)
-        for cambio in cambios.prefix(3) {
-            await Notifier.injury(cambio)
+        for liga in book.leagues {
+            guard let actual = snapshots[liga.id] else { continue }
+            for cambio in InjuryWatcher.changes(in: actual, catalog: catalog).prefix(3) {
+                await Notifier.injury(cambio, league: liga)
+            }
         }
     }
 
@@ -268,14 +294,14 @@ final class ScoreboardModel: ObservableObject {
 
     // MARK: - Live Activity
 
-    func startLiveActivity() async {
-        guard let snapshot else { return }
+    func startLiveActivity(for league: LeagueConfig) async {
+        guard let snapshot = snapshots[league.id] else { return }
         await live.requestNotificationPermission()
-        live.start(with: snapshot)
+        live.start(for: league.id, with: snapshot)
     }
 
-    func stopLiveActivity() async {
-        await live.stop()
+    func stopLiveActivity(for league: LeagueConfig) async {
+        await live.stop(for: league.id)
     }
 
     // MARK: - Ajustes
