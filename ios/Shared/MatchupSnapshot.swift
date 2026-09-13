@@ -34,6 +34,10 @@ struct PlayerLine: Codable, Hashable, Identifiable {
     /// True cuando el partido de su equipo ya ha terminado: entonces lo que
     /// lleva anotado es lo definitivo y no le queda nada por sumar.
     var gameFinished: Bool?
+    /// Qué fracción del partido le queda por delante, de 1 a 0. Es lo que
+    /// permite encoger su proyección según avanza el reloj, como hace Sleeper.
+    /// Nil cuando no sabemos en qué punto va el partido.
+    var gameRemaining: Double?
 
     var id: String { playerID }
 

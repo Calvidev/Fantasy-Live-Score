@@ -106,7 +106,8 @@ struct MatchupService {
                 stats: weekStats?.line(for: playerID, position: entry?.position),
                 projected: projections?.projected(for: playerID, scoring: league.scoringSettings),
                 injury: entry?.injuryStatus,
-                gameFinished: gameStatus?.hasFinished(entry?.team)
+                gameFinished: gameStatus?.hasFinished(entry?.team),
+                gameRemaining: gameStatus?.remaining(for: entry?.team)
             )
         }
 
@@ -221,7 +222,8 @@ struct MatchupService {
             stats: weekStats?.line(for: playerID, position: entry?.position),
             projected: projections?.projected(for: playerID, scoring: scoring),
             injury: entry?.injuryStatus,
-            gameFinished: gameStatus?.hasFinished(entry?.team)
+            gameFinished: gameStatus?.hasFinished(entry?.team),
+            gameRemaining: gameStatus?.remaining(for: entry?.team)
         )
     }
 }

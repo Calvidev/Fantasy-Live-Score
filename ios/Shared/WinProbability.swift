@@ -1,11 +1,12 @@
 //  WinProbability.swift
 //  "Vas ganando de 10, pero tienes un 38 % de ganar."
 //
-//  El método, sin misterio: a cada titular le queda por anotar la diferencia
-//  entre su proyección y lo que lleva. Sumando sale el marcador final esperado
-//  de cada lado. La incertidumbre crece con lo que queda por jugar, así que un
-//  partido con todos los jugadores terminados es casi determinista y uno con
-//  cuatro por jugar puede darse la vuelta.
+//  El método, sin misterio: a cada titular le queda por anotar su proyección
+//  repartida por el reloj —medio partido por delante, media proyección—, que
+//  es como lo cuenta Sleeper. Sumando sale el marcador final esperado de cada
+//  lado. La incertidumbre crece con lo que queda por jugar, así que un partido
+//  con todos los jugadores terminados es casi determinista y uno con cuatro
+//  por jugar puede darse la vuelta.
 //
 //  Es una estimación, no un oráculo: no sabe de lesiones en directo ni de
 //  reparto de balón. Sirve para lo que sirve.
@@ -81,15 +82,25 @@ enum WinProbability {
         )
     }
 
-    /// Lo que le queda por anotar: su proyección menos lo que lleva, nunca
-    /// negativo. Un jugador que ya superó su proyección no "devuelve" puntos.
+    /// Lo que le queda por anotar.
     ///
-    /// Y si su partido terminó, no le queda nada: lo que hizo es lo que hay.
-    /// Sin esa comprobación la proyección se queda alta toda la tarde —era la
-    /// diferencia entre los 136.1 que enseñaba la app y los 129.3 de Sleeper.
+    /// Lo reparte con el reloj, que es como lo hace Sleeper: a un jugador con
+    /// 12 proyectados y medio partido por delante le quedan 6, vaya como vaya.
+    /// Con el partido terminado no le queda nada, y sin empezar le queda todo.
+    ///
+    /// Antes se restaba lo que llevaba —`proyección − puntos`— y eso suponía
+    /// que todo jugador acaba al menos en su proyección. Con media liga aún
+    /// jugando el total salía siempre por arriba: 140.1 frente a los 133.6 de
+    /// Sleeper en la misma jornada.
+    ///
+    /// Si no sabemos por dónde va el partido (equipo que ESPN no lista,
+    /// datos viejos guardados), se vuelve a la cuenta de antes.
     private static func remaining(for line: PlayerLine) -> Double {
+        guard let proyectado = line.projected, proyectado > 0 else { return 0 }
+        if let queda = line.gameRemaining {
+            return max(0, proyectado * queda)
+        }
         if line.gameFinished == true { return 0 }
-        guard let proyectado = line.projected else { return 0 }
         return max(0, proyectado - line.points)
     }
 

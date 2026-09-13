@@ -191,27 +191,43 @@ Es el número que convierte un marcador en una historia: "vas ganando de 10, per
 tienes un 38 % de ganar" dice mucho más que el marcador solo.
 
 El método, sin misterio (`Shared/WinProbability.swift`): a cada titular le queda
-por anotar la diferencia entre su proyección y lo que lleva, nunca negativa.
-Sumando sale el resultado final esperado de cada lado. La incertidumbre crece
-con lo que queda por jugar —60 % de dispersión por punto pendiente—, así que un
-partido con todos los jugadores terminados es casi determinista y uno con cuatro
-por jugar puede darse la vuelta.
+por anotar su proyección repartida por el reloj. Sumando sale el resultado final
+esperado de cada lado. La incertidumbre crece con lo que queda por jugar —60 %
+de dispersión por punto pendiente—, así que un partido con todos los jugadores
+terminados es casi determinista y uno con cuatro por jugar puede darse la
+vuelta.
 
-Las proyecciones se calculan **con las reglas de tu liga**: se cogen las
-estadísticas proyectadas de cada jugador (recepciones, yardas, touchdowns) y se
-multiplican por lo que vale cada una en tu liga, que es exactamente lo que hace
-Sleeper. Usar el total PPR que viene precalculado desviaba unos siete puntos por
+### El total proyectado tiene que dar lo mismo que Sleeper
+
+Sleeper **no publica** el total proyectado de un equipo. Su API da la proyección
+de cada jugador por separado, y el número grande que enseña la app lo suma ella
+misma. Así que aquí también hay que calcularlo, y la única forma de que cuadre
+es calcularlo igual. Tres cosas, que son las tres que lo desviaban:
+
+**Con las reglas de tu liga.** Se cogen las estadísticas proyectadas de cada
+jugador (recepciones, yardas, touchdowns) y se multiplican por lo que vale cada
+una en tu liga. Usar el total PPR precalculado desviaba unos siete puntos por
 equipo en una liga de media PPR, porque cada recepción vale la mitad.
 
-Y no cuenta lo que ya no puede pasar: si el partido de un jugador ha terminado,
-lo que hizo es lo definitivo y no se le suponen más puntos. Eso hay que
-preguntárselo al marcador de ESPN, porque Sleeper no dice si el partido acabó, y
-era la diferencia entre los 136.1 que enseñaba la app y los 129.3 de Sleeper con
-un solo jugador con el partido cerrado.
+**Sin contar lo que ya no puede pasar.** Si el partido de un jugador terminó, lo
+que hizo es lo definitivo. Sleeper no dice si el partido acabó, así que se le
+pregunta al marcador de ESPN. Era la diferencia entre los 136.1 que enseñaba la
+app y los 129.3 de Sleeper con un solo jugador con el partido cerrado.
+
+**Repartida por el reloj.** Esta es la que quedaba. A un jugador con 12
+proyectados y medio partido por delante le quedan 6, no 12 menos lo que lleve.
+Antes se restaba —`proyección − puntos`, nunca negativo—, lo que da por hecho
+que todo jugador acaba al menos en su proyección; con media liga aún jugando el
+total salía siempre por arriba. En una jornada real: 140.1 contra los 133.6 de
+Sleeper, unos siete puntos, y todos del lado con jugadores en mitad de un
+partido —el del rival, con casi todos por empezar, cuadraba dentro de un punto.
+El reloj sale del mismo marcador de ESPN (cuarto y segundos restantes), y en el
+descanso ESPN deja el cuarto en 2 con el reloj a cero, que es justo la mitad.
 
 Aun así es una estimación, no un oráculo: no sabe de lesiones en directo ni de
-reparto de balón. Para lo que sirve —saber si hay que seguir mirando— aguanta
-bien.
+reparto de balón. Y el marcador puede ir un minuto por detrás del de Sleeper
+sencillamente porque se leyó un minuto antes. Para lo que sirve —saber si hay
+que seguir mirando— aguanta bien.
 
 ## Los sonidos
 
