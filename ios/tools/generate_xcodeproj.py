@@ -74,7 +74,7 @@ APP_SOURCES = [
     "ShareCard.swift",
     "SleeperSettingsView.swift",
     "YahooAuth.swift",
-    "YahooLeaguesView.swift",
+    "YahooSettingsView.swift",
 ]
 WIDGET_SOURCES = [
     "ScoreWidgetBundle.swift",

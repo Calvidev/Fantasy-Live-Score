@@ -11,8 +11,6 @@ struct AccountsView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var yahoo = YahooAuth()
 
-    @State private var showingYahoo = false
-    @State private var showingYahooLeagues = false
     @State private var showingPaywall = false
     @State private var catalogDate: Date?
     @State private var isRefreshingCatalog = false
@@ -45,20 +43,12 @@ struct AccountsView: View {
             .sheet(isPresented: $showingPaywall) {
                 PaywallView().preferredColorScheme(.dark)
             }
-            .sheet(isPresented: $showingYahoo) {
-                YahooLoginView(auth: yahoo)
-                    .preferredColorScheme(.dark)
-            }
-            .sheet(isPresented: $showingYahooLeagues) {
-                YahooLeaguesView()
-                    .environmentObject(model)
-                    .preferredColorScheme(.dark)
-            }
             .task {
                 catalogDate = await PlayerCatalog.shared.savedAt
             }
-            .onChange(of: showingYahoo) { _, abierto in
-                if !abierto { revision += 1 }
+            // Al volver de la página de Yahoo puede haber cambiado la sesión.
+            .onChange(of: yahoo.isConnected) { _, _ in
+                revision += 1
             }
             .onChange(of: showingPaywall) { _, abierto in
                 if !abierto { revision += 1 }
@@ -177,20 +167,11 @@ struct AccountsView: View {
                 HostRow(host: .sleeper, connection: connections[.sleeper])
             }
 
-            Button {
-                showingYahoo = true
+            NavigationLink {
+                YahooSettingsView(auth: yahoo)
+                    .environmentObject(model)
             } label: {
                 HostRow(host: .yahoo, connection: connections[.yahoo])
-            }
-
-            // Con la sesión ya iniciada, lo que hace falta es elegir liga.
-            if connections[.yahoo] != nil {
-                Button {
-                    showingYahooLeagues = true
-                } label: {
-                    Label("Añadir una liga de Yahoo", systemImage: "plus.circle")
-                        .foregroundStyle(Theme.accent)
-                }
             }
 
             ForEach(HostKind.allCases.filter { !$0.isAvailable }) { host in
@@ -338,132 +319,6 @@ struct HostRow: View {
     }
 }
 
-// MARK: - Yahoo
-
-struct YahooLoginView: View {
-    @ObservedObject var auth: YahooAuth
-    @Environment(\.dismiss) private var dismiss
-    @State private var isWorking = false
-    @State private var error: String?
-    /// El código que Yahoo enseña en pantalla cuando la vuelta es `oob`.
-    @State private var pastedCode = ""
-    @State private var showPasteBox = false
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                if auth.isConnected {
-                    Section {
-                        Label("Sesión iniciada", systemImage: "checkmark.seal.fill")
-                            .foregroundStyle(Theme.accent)
-                        // Lo concedido, no lo pedido. Si aquí no sale nada de
-                        // fantasy, ninguna petición de ligas va a funcionar por
-                        // mucho que el login diga que todo fue bien.
-                        LabeledContent("Permisos") {
-                            Text(auth.token?.grantedScope ?? "sin especificar")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Button("Cerrar sesión", role: .destructive) {
-                            auth.signOut()
-                        }
-                    } footer: {
-                        Text("El token queda en el llavero compartido, para que el widget y el refresco en segundo plano también puedan pedir datos. Cierra esto y usa «Añadir una liga de Yahoo» para elegir liga y equipo.")
-                    }
-                } else {
-                    Section {
-                        TextField("Client ID", text: $auth.credentials.clientID)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                        SecureField("Client Secret", text: $auth.credentials.clientSecret)
-                        TextField("Redirect URI", text: $auth.credentials.redirectURI)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                        TextField("Scope (déjalo vacío)", text: Binding(
-                            get: { auth.credentials.scope ?? "" },
-                            set: { auth.credentials.scope = $0 }
-                        ))
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    } header: {
-                        Text("Tu app de Yahoo")
-                    } footer: {
-                        Text("Se sacan registrando una app en developer.yahoo.com. En «Redirect URI» pega exactamente la dirección que ya viene aquí: Yahoo solo admite direcciones https, y esa es una página que no hace más que devolverte a la app. El scope déjalo vacío: pedir «fspt-r» hace que Yahoo conteste «invalid scope», porque su formulario de alta ya no ofrece el permiso de Fantasy Sports; sin scope concede lo que tenga la app. El client id y el secreto no vienen en el código a propósito —un secreto metido en una app de iPhone lo puede extraer cualquiera— y se guardan en el llavero de este teléfono.")
-                    }
-
-                    Section {
-                        Button {
-                            Task { await connect() }
-                        } label: {
-                            if isWorking {
-                                HStack { ProgressView(); Text("Abriendo Yahoo…") }
-                            } else {
-                                Text("Iniciar sesión con Yahoo")
-                            }
-                        }
-                        .disabled(isWorking || !auth.credentials.isComplete)
-                    }
-
-                    // Plan B. El salto de la página de vuelta a la app lo puede
-                    // bloquear el sistema, y entonces el código se queda en
-                    // pantalla: esto es para pegarlo y no quedarse tirado.
-                    Section {
-                        DisclosureGroup("¿No volvió sola?", isExpanded: $showPasteBox) {
-                            TextField("Pega aquí el código", text: $pastedCode)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
-                            Button("Conectar con ese código") {
-                                Task { await connectPasted() }
-                            }
-                            .disabled(isWorking || pastedCode.isEmpty)
-                        }
-                    } footer: {
-                        Text("Si al autorizar te quedaste en la página web con un código a la vista, cópialo y pégalo aquí.")
-                    }
-                }
-
-                if let error {
-                    Section {
-                        Label(error, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
-                    }
-                }
-            }
-            .scrollContentBackground(.hidden)
-            .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Yahoo")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cerrar") { dismiss() }
-                }
-            }
-        }
-    }
-
-    private func connect() async {
-        isWorking = true
-        error = nil
-        defer { isWorking = false }
-        do {
-            try await auth.signIn()
-        } catch {
-            self.error = error.localizedDescription
-        }
-    }
-
-    private func connectPasted() async {
-        isWorking = true
-        error = nil
-        defer { isWorking = false }
-        do {
-            try await auth.connect(pastedCode: pastedCode)
-            pastedCode = ""
-        } catch {
-            self.error = error.localizedDescription
-        }
-    }
-}
 
 /// Avatar de red con hueco de reserva, para las listas de ajustes.
 struct AsyncAvatar: View {
