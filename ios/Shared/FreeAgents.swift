@@ -47,6 +47,11 @@ extension MatchupService {
         league: LeagueConfig,
         limit: Int = 40
     ) async throws -> [FreeAgent] {
+        // De momento solo Sleeper: esto se apoya en su catálogo de jugadores y
+        // en lo que se ficha en toda la plataforma, que no tiene equivalente.
+        guard league.platform == .sleeper else {
+            throw SleeperError.hostUnsupported(league.platform.title)
+        }
         let leagueID = league.leagueID.trimmingCharacters(in: .whitespaces)
         guard !leagueID.isEmpty else { throw SleeperError.leagueNotSet }
 

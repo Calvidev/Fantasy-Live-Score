@@ -64,6 +64,10 @@
 			isa = PBXBuildFile;
 			fileRef = 203F74635AA1CE200A0E9736 /* Entitlements.swift */;
 		};
+		0C752B191667E76B9853164E = {
+			isa = PBXBuildFile;
+			fileRef = F0CCC112E2BC8CA60C81AAFC /* YahooHost.swift */;
+		};
 		0DD13316DF6FE38BA82C3C23 = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -260,6 +264,7 @@
 			files = (
 				5ADEADE4C0734DD3CBC6315E /* AppConfig.swift in ScoreWidgetExtension */,
 				76783979A41D8BC5142F6045 /* JSONSupport.swift in ScoreWidgetExtension */,
+				885D74AF35BB94C671BDD9C1 /* JSONValue.swift in ScoreWidgetExtension */,
 				D43102C6B7124A44BB8B79D2 /* SleeperModels.swift in ScoreWidgetExtension */,
 				3583F9BFD8A741B035FE38DC /* SleeperAPI.swift in ScoreWidgetExtension */,
 				2C74BDE13991C1ADF223AAEA /* MatchupSnapshot.swift in ScoreWidgetExtension */,
@@ -283,6 +288,8 @@
 				1C4F7F3429814B3CC0DDFDC4 /* SeasonHistory.swift in ScoreWidgetExtension */,
 				43D4360474A5ED124FEF8CA8 /* FreeAgents.swift in ScoreWidgetExtension */,
 				CBBBE19B4682C29799DAE9F0 /* MatchupService.swift in ScoreWidgetExtension */,
+				43FC6AEF9BE0F4179B2FF104 /* YahooSession.swift in ScoreWidgetExtension */,
+				0C752B191667E76B9853164E /* YahooHost.swift in ScoreWidgetExtension */,
 				9A14ACA83648BAAD0A7B4F62 /* Theme.swift in ScoreWidgetExtension */,
 				71DAAFA211708FECC42DA14A /* MatchupComponents.swift in ScoreWidgetExtension */,
 				553B51B711A499F0543A1AF3 /* ScoreWidgetBundle.swift in ScoreWidgetExtension */,
@@ -324,6 +331,14 @@
 		43D4360474A5ED124FEF8CA8 = {
 			isa = PBXBuildFile;
 			fileRef = F2282486E0753A66D5795486 /* FreeAgents.swift */;
+		};
+		43FC6AEF9BE0F4179B2FF104 = {
+			isa = PBXBuildFile;
+			fileRef = F4EA3E94B3DFF8CDDAB6DF91 /* YahooSession.swift */;
+		};
+		44C12F7378F99D90F9D2B794 = {
+			isa = PBXBuildFile;
+			fileRef = F4EA3E94B3DFF8CDDAB6DF91 /* YahooSession.swift */;
 		};
 		45DE0911B50B5D5508CA0B61 = {
 			isa = PBXBuildFile;
@@ -374,6 +389,7 @@
 			files = (
 				13FBE3C3B926169A29D11AEA /* AppConfig.swift in SleeperScore */,
 				62A1142776BBB3D9EDA74A24 /* JSONSupport.swift in SleeperScore */,
+				4AED41748438A77B470183C9 /* JSONValue.swift in SleeperScore */,
 				79CAEDCD7081CCC9E228807D /* SleeperModels.swift in SleeperScore */,
 				45DE0911B50B5D5508CA0B61 /* SleeperAPI.swift in SleeperScore */,
 				532D73CF490BB7A11403E875 /* MatchupSnapshot.swift in SleeperScore */,
@@ -397,6 +413,8 @@
 				D2CFDBA3102D6FCABBFB8476 /* SeasonHistory.swift in SleeperScore */,
 				FDD0259102F3D7948F60CADB /* FreeAgents.swift in SleeperScore */,
 				58AA38ADA353BE33F5AF5C3A /* MatchupService.swift in SleeperScore */,
+				44C12F7378F99D90F9D2B794 /* YahooSession.swift in SleeperScore */,
+				AD1AD4779C32F7A2768C1CCF /* YahooHost.swift in SleeperScore */,
 				D80B18A2F5944D5736AB7143 /* Theme.swift in SleeperScore */,
 				241B5769E28CE18570E5F2F8 /* MatchupComponents.swift in SleeperScore */,
 				55FB7C5417C0B686BCCA94A7 /* SleeperScoreApp.swift in SleeperScore */,
@@ -433,6 +451,10 @@
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4AED41748438A77B470183C9 = {
+			isa = PBXBuildFile;
+			fileRef = C66DC1DE309A5BC1C65F6F6A /* JSONValue.swift */;
 		};
 		4B6C2876ED42CF301970B266 = {
 			isa = XCConfigurationList;
@@ -706,6 +728,10 @@
 			path = ScoringDetector.swift;
 			sourceTree = "<group>";
 		};
+		885D74AF35BB94C671BDD9C1 = {
+			isa = PBXBuildFile;
+			fileRef = C66DC1DE309A5BC1C65F6F6A /* JSONValue.swift */;
+		};
 		889A34C747900C87EE5F896E = {
 			isa = PBXFileReference;
 			lastKnownFileType = text.plist.entitlements;
@@ -795,6 +821,7 @@
 			children = (
 				CD7706DE0705E26991B88766 /* AppConfig.swift */,
 				5EE764C8FC411275FBA279BF /* JSONSupport.swift */,
+				C66DC1DE309A5BC1C65F6F6A /* JSONValue.swift */,
 				47DB9E782CD4A6EF0DD65202 /* SleeperModels.swift */,
 				5B5F18854E67727AE5FF5B8E /* SleeperAPI.swift */,
 				5B082B835ACC628B90347851 /* MatchupSnapshot.swift */,
@@ -818,6 +845,8 @@
 				11EFC0520AE3ED4F58D2E14D /* SeasonHistory.swift */,
 				F2282486E0753A66D5795486 /* FreeAgents.swift */,
 				ADE09ECB837E05A3414451DB /* MatchupService.swift */,
+				F4EA3E94B3DFF8CDDAB6DF91 /* YahooSession.swift */,
+				F0CCC112E2BC8CA60C81AAFC /* YahooHost.swift */,
 				207AE7F7BF7702CED53D696C /* Theme.swift */,
 				6017835189AFFF5EC9046AAB /* MatchupComponents.swift */,
 			);
@@ -847,6 +876,10 @@
 		AC44EE7A89E0071831176FE1 = {
 			isa = PBXBuildFile;
 			fileRef = 195E05D9D0E5FE526308E629 /* HostKind.swift */;
+		};
+		AD1AD4779C32F7A2768C1CCF = {
+			isa = PBXBuildFile;
+			fileRef = F0CCC112E2BC8CA60C81AAFC /* YahooHost.swift */;
 		};
 		ADE09ECB837E05A3414451DB = {
 			isa = PBXFileReference;
@@ -942,6 +975,12 @@
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
 			path = ScoreboardModel.swift;
+			sourceTree = "<group>";
+		};
+		C66DC1DE309A5BC1C65F6F6A = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = JSONValue.swift;
 			sourceTree = "<group>";
 		};
 		C67A2D71EF5298D30645961D = {
@@ -1163,6 +1202,12 @@
 			isa = PBXBuildFile;
 			fileRef = 829D3BCA1A0DC5A3F4AD3F49 /* PrivacyInfo.xcprivacy */;
 		};
+		F0CCC112E2BC8CA60C81AAFC = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = YahooHost.swift;
+			sourceTree = "<group>";
+		};
 		F2282486E0753A66D5795486 = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -1173,6 +1218,12 @@
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
 			path = MatchSimulator.swift;
+			sourceTree = "<group>";
+		};
+		F4EA3E94B3DFF8CDDAB6DF91 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = YahooSession.swift;
 			sourceTree = "<group>";
 		};
 		F5A30E0A9EB43FB9E5566673 = {

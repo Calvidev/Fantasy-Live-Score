@@ -1,19 +1,38 @@
 //  MatchupService.swift
-//  Monta el marcador a partir de cinco llamadas a Sleeper.
+//  El marcador de una liga, venga de donde venga.
 //
-//  Es el mismo camino que hacía el widget de Scriptable: estado -> jornada,
-//  liga, managers, rosters y enfrentamientos de esa jornada. Lo usan igual la
-//  app y el widget, así que los dos enseñan exactamente lo mismo.
+//  Es la única puerta: la pantalla, el widget, la Live Activity y el refresco
+//  de fondo piden aquí y reciben un `MatchupSnapshot`. Dentro se mira de qué
+//  plataforma es la liga y se le pasa a quien sepa hablar con ella.
+//
+//  Que exista esa costura no es arquitectura por gusto. Nueve de cada diez
+//  llamadas de la app eran a Sleeper, cuya API es pública pero no tiene
+//  contrato: ni versionado, ni SLA, ni clave. Depender de una sola plataforma
+//  era el riesgo más grande que tenía esto.
 
 import Foundation
 
 struct MatchupService {
     var api: SleeperAPI = .shared
+    var yahoo: YahooHost = YahooHost()
 
-    /// `week` en nil es la jornada que toca. Pasando una anterior se monta el
-    /// marcador de aquella semana, para poder mirar atrás.
+    /// `week` en nil es la jornada que toca. Pasando otra se monta el marcador
+    /// de aquella semana, para poder mirar atrás o adelante.
     func snapshot(for config: LeagueConfig, week semanaPedida: Int? = nil) async throws -> MatchupSnapshot {
         guard config.isComplete else { throw SleeperError.leagueNotSet }
+        switch config.platform {
+        case .yahoo:
+            return try await yahoo.snapshot(for: config, week: semanaPedida)
+        case .sleeper:
+            return try await sleeperSnapshot(for: config, week: semanaPedida)
+        case .espn, .nfl:
+            throw SleeperError.hostUnsupported(config.platform.title)
+        }
+    }
+
+    private func sleeperSnapshot(
+        for config: LeagueConfig, week semanaPedida: Int? = nil
+    ) async throws -> MatchupSnapshot {
         let leagueID = config.leagueID.trimmingCharacters(in: .whitespaces)
 
         let state = try await api.state()
@@ -300,9 +319,24 @@ struct TeamStanding: Identifiable, Hashable {
 }
 
 extension MatchupService {
-    /// La tabla de la liga. Sale de los rosters, que ya traen récord y puntos:
-    /// no hace falta ninguna llamada nueva.
-    func standings(in leagueID: String, myRosterID: Int?) async throws -> [TeamStanding] {
+    /// La tabla de la liga.
+    ///
+    /// Recibe la liga entera y no solo su número porque hace falta saber de qué
+    /// plataforma es: dos ligas distintas pueden compartir identificador.
+    func standings(for league: LeagueConfig) async throws -> [TeamStanding] {
+        switch league.platform {
+        case .yahoo:
+            return try await yahoo.standings(in: league.leagueID, myRosterID: league.rosterID)
+        case .sleeper:
+            return try await sleeperStandings(in: league.leagueID, myRosterID: league.rosterID)
+        case .espn, .nfl:
+            throw SleeperError.hostUnsupported(league.platform.title)
+        }
+    }
+
+    /// En Sleeper sale de los rosters, que ya traen récord y puntos: no hace
+    /// falta ninguna llamada nueva.
+    private func sleeperStandings(in leagueID: String, myRosterID: Int?) async throws -> [TeamStanding] {
         let clean = leagueID.trimmingCharacters(in: .whitespaces)
         guard !clean.isEmpty else { throw SleeperError.leagueNotSet }
 

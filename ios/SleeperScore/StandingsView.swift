@@ -16,7 +16,7 @@ final class StandingsModel: ObservableObject {
         error = nil
         defer { isLoading = false }
         do {
-            teams = try await service.standings(in: league.leagueID, myRosterID: league.rosterID)
+            teams = try await service.standings(for: league)
         } catch {
             self.error = error.localizedDescription
         }

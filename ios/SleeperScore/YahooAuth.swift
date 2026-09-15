@@ -7,35 +7,14 @@
 //  secreto (cualquiera lo saca del binario). Se piden una vez y se guardan en
 //  el llavero.
 //
-//  Esto inicia sesión y guarda el token. Leer tus ligas de Yahoo es el paso
-//  siguiente y todavía no está.
+//  Esto solo inicia sesión y guarda el token. Leerlo y pedir datos es cosa de
+//  `Shared/YahooSession`, que corre también sin interfaz: el widget y el
+//  refresco de fondo necesitan los mismos datos y no pueden abrir una ventana.
+//  Por eso `YahooCredentials` y `YahooToken` viven en Shared y no aquí.
 
 import AuthenticationServices
 import Foundation
 import UIKit
-
-struct YahooCredentials: Codable, Equatable {
-    var clientID: String
-    var clientSecret: String
-    /// Yahoo obliga a declarar la dirección de vuelta al registrar la app.
-    var redirectURI: String
-
-    var isComplete: Bool {
-        !clientID.isEmpty && !clientSecret.isEmpty && !redirectURI.isEmpty
-    }
-}
-
-struct YahooToken: Codable, Equatable {
-    var accessToken: String
-    var refreshToken: String?
-    var expiresAt: Date?
-    var accountName: String?
-
-    var isExpired: Bool {
-        guard let expiresAt else { return false }
-        return Date() >= expiresAt.addingTimeInterval(-60)
-    }
-}
 
 enum YahooAuthError: LocalizedError {
     case missingCredentials

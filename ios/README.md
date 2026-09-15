@@ -540,3 +540,69 @@ Si sale alguno, dímelo con el mensaje y lo arreglo.
 
 Tampoco hay tests: los del repo (`pytest`) son de la herramienta web en Python y
 no tocan esta carpeta.
+
+## Yahoo: por qué y hasta dónde
+
+Nueve de cada diez llamadas de la app eran a Sleeper. Su API es pública pero no
+tiene contrato: ni versionado, ni SLA, ni clave. Pueden cambiar un campo un
+martes y romperla sin avisar a nadie. Depender de una sola plataforma era el
+riesgo más grande que tenía esto —y además es justo lo que hay que resolver para
+poder cobrar, porque el valor es seguir tus equipos de varias plataformas desde
+el mismo sitio.
+
+`MatchupService` ya no es "el cliente de Sleeper": es la única puerta, y mira de
+qué plataforma es la liga antes de pedir nada. Fuera de ahí, una liga de Yahoo y
+una de Sleeper son lo mismo — la pantalla, el widget, la Live Activity y los
+avisos no saben de dónde salen los puntos.
+
+### Lo raro de Yahoo
+
+| | Sleeper | Yahoo |
+| --- | --- | --- |
+| Entrar | Nombre de usuario, sin más | OAuth 2.0, con app registrada |
+| Identificar una liga | `123456` | `449.l.123456` (juego + liga) |
+| Puntuación | Estadísticas crudas × reglas de tu liga | Ya vienen los puntos hechos |
+| Jornada actual | Del deporte (`/state/nfl`) | De cada liga (`current_week`) |
+| Formato | JSON de verdad | XML traducido a JSON |
+
+Lo último es lo que más duele. Una lista de equipos en Yahoo no es un array: es
+un objeto con claves `"0"`, `"1"` y un `"count"` al lado, y dentro de cada
+equipo los datos vienen en un array que mezcla diccionarios sueltos. Navegar eso
+por rutas fijas se rompe en cuanto Yahoo mete un campo por el medio.
+
+Por eso `JSONValue` **no navega, busca**: `find("team_points")` recorre el
+subárbol por niveles hasta dar con la clave, y `findAll("team")` saca los dos
+equipos de un enfrentamiento sin bajar dentro de cada uno. Es más lento y da
+igual: son respuestas de unos kilobytes.
+
+### Qué funciona y qué no
+
+| | Sleeper | Yahoo |
+| --- | --- | --- |
+| Marcador, alineación, proyección | Sí | Sí |
+| Probabilidad de ganar | Sí | Sí |
+| Clasificación | Sí | Sí |
+| Cambiar de jornada | Sí | Sí |
+| Fotos de jugador | Sí | **No** (los ids no son los de Sleeper) |
+| Puntos dejados en el banquillo | Sí | **No** (faltan las reglas de hueco) |
+| Agentes libres | Sí | **No** |
+| Avisos de lesión | Sí | **No** (el catálogo es de Sleeper) |
+
+Lo que no está avisa con sus palabras ("Todavía no se pueden leer ligas de…")
+en vez de fallar raro.
+
+### Probarlo
+
+Yahoo exige registrar una app en developer.yahoo.com para tener un client id y
+un secreto; no vienen en el código porque un secreto dentro de una app de
+iPhone no es un secreto. Se piden una vez en Ajustes y se guardan en el llavero.
+
+El token se guarda en el llavero **compartido**, no en el de la app: el widget y
+el refresco en segundo plano también piden datos y corren sin interfaz.
+`YahooSession` es un actor porque renovar el token es una carrera esperando a
+pasar — tres ligas refrescándose a la vez con el token caducado harían tres
+canjes, y Yahoo invalida el refresh token anterior en cada uno.
+
+Si algo no cuadra, encendiendo `yahooDebugDump` en los ajustes compartidos se
+guarda la última respuesta en `yahoo-ultima-respuesta.json` dentro del grupo de
+apps. Está apagado por defecto: son datos de la liga de quien use la app.

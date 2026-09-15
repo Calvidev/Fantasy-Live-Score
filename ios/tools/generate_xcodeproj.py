@@ -27,6 +27,7 @@ OBJECT_VERSION = 56  # Xcode 14 en adelante
 SHARED_SOURCES = [
     "AppConfig.swift",
     "JSONSupport.swift",
+    "JSONValue.swift",
     "SleeperModels.swift",
     "SleeperAPI.swift",
     "MatchupSnapshot.swift",
@@ -50,6 +51,8 @@ SHARED_SOURCES = [
     "SeasonHistory.swift",
     "FreeAgents.swift",
     "MatchupService.swift",
+    "YahooSession.swift",
+    "YahooHost.swift",
     "Theme.swift",
     "MatchupComponents.swift",
 ]
