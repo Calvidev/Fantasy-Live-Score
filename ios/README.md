@@ -73,6 +73,48 @@ sabrá con qué cuenta firmar; entonces pásale el equipo a mano:
 El Team ID está en Xcode > Settings > Accounts (columna *Team ID*) o en
 developer.apple.com/account.
 
+### Lanzarlo desde el teléfono
+
+Compilar en el iPhone no se puede: `xcodebuild` solo existe en macOS. Lo que sí
+se puede es **dar la orden desde el teléfono y que compile el Mac**. Con una
+cuenta gratuita la app caduca cada siete días, así que esto se acaba usando más
+de lo que parece.
+
+En el Mac, una vez:
+
+1. Ajustes > General > Compartir > **Sesión remota** (eso es SSH).
+2. Ajustes > Pantalla bloqueada > **impedir que el Mac se duerma** con la
+   pantalla apagada mientras esté enchufado. Un Mac dormido no contesta.
+3. En Xcode, Window > Devices and Simulators, con el iPhone por cable: marcar
+   **"Connect via network"**. Sin eso hay que instalar por cable.
+
+En el teléfono, la forma más cómoda es un **Atajo** (app Atajos) con la acción
+*Ejecutar script mediante SSH*, y ponerlo en la pantalla de inicio:
+
+```bash
+cd ~/ruta/a/gmail-cleaner && ./ios/build.sh actualizar && ./ios/build.sh iphone
+```
+
+El Atajo enseña la salida al terminar, que es justo lo que interesa: `✓ Listo` o
+la lista de errores. Para autenticarse, Atajos genera una clave SSH y su clave
+pública se pega en `~/.ssh/authorized_keys` del Mac.
+
+Si prefieres ver el proceso entero, cualquier terminal SSH de iOS (Termius,
+Blink) vale igual y además deja leer `/tmp/sleeperscore-build.log` cuando algo
+falla.
+
+**Lo que muerde**: firmar necesita la clave privada del llavero, y el llavero de
+inicio de sesión está **cerrado** si el Mac no se ha desbloqueado desde que
+arrancó. Por SSH el error que da Apple es "User interaction is not allowed", que
+no explica nada; `build.sh` lo detecta y te dice qué hacer:
+
+```bash
+security unlock-keychain ~/Library/Keychains/login.keychain-db
+```
+
+Fuera de casa hace falta además llegar al Mac: Tailscale es lo más simple
+(instalarlo en los dos y usar el nombre de la máquina como host).
+
 ## Cómo arrancarla (5 minutos)
 
 1. **Abre el proyecto**: `open ios/SleeperScore.xcodeproj`.

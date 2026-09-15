@@ -164,6 +164,18 @@ instalar_en_iphone() {
     echo "✗ Falló al compilar o firmar:"
     echo
     grep -E "error:" "$LOG" | sed 's/^/   /' | sort -u | head -25
+    echo
+
+    # El fallo típico al lanzarlo por SSH: firmar necesita la clave privada del
+    # llavero, y el llavero de inicio de sesión está cerrado si el Mac no se ha
+    # desbloqueado desde que arrancó. El mensaje de Apple no lo explica.
+    if grep -qE "User interaction is not allowed|errSecInteractionNotAllowed" "$LOG"; then
+      echo "   → El llavero está cerrado. Pasa al lanzarlo por SSH con el Mac"
+      echo "     bloqueado desde el arranque. Ábrelo una vez:"
+      echo "       security unlock-keychain ~/Library/Keychains/login.keychain-db"
+      echo "     (o desbloquea el Mac a mano y vuelve a lanzarlo)"
+      echo
+    fi
     return 1
   fi
 
