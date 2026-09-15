@@ -75,6 +75,7 @@ struct YahooToken: Codable, Equatable {
 
 enum YahooError: LocalizedError {
     case notConnected
+    case notApproved
     case missingCredentials
     case refreshFailed(String)
     case badStatus(Int, String)
@@ -87,6 +88,8 @@ enum YahooError: LocalizedError {
         switch self {
         case .notConnected:
             return String(localized: "Todavía no has entrado en Yahoo.")
+        case .notApproved:
+            return String(localized: "Yahoo no ha aprobado el acceso a su API de fantasy para esta app. Desde 2025 hay que solicitarlo en sports.yahoo.com/developer y esperar a que lo aprueben; entrar con tu cuenta no basta.")
         case .missingCredentials:
             return String(localized: "Faltan el client id y el secreto de tu app de Yahoo.")
         case let .refreshFailed(detalle):
@@ -166,6 +169,12 @@ actor YahooSession {
             if codigo == 401, !reintentando {
                 try await refresh(force: true)
                 return try await raw(path, reintentando: true)
+            }
+            // Un 401 con el token recién renovado no es que la sesión esté
+            // mal: es que Yahoo no ha aprobado a esta app para su API de
+            // fantasy. Decirlo así ahorra buscar un fallo que no existe.
+            if codigo == 401, reintentando {
+                throw YahooError.notApproved
             }
             guard (200..<300).contains(codigo) else {
                 // El cuerpo dice qué falta; el número solo, no.

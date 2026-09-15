@@ -96,6 +96,7 @@ struct YahooSettingsView: View {
                 teamsSection
                 addSection
             } else {
+                approvalSection
                 credentialsSection
                 signInSection
                 pasteSection
@@ -117,6 +118,28 @@ struct YahooSettingsView: View {
         }
         .onChange(of: auth.isConnected) { _, conectado in
             if conectado { Task { await picker.loadLeagues() } }
+        }
+    }
+
+    /// Lo primero que hay que saber, antes de pelearse con las credenciales.
+    ///
+    /// Desde 2025 Yahoo no da acceso a su API de fantasy por registrar una app:
+    /// hay que solicitarlo y que lo aprueben. Sin eso, el login funciona —Yahoo
+    /// deja entrar— pero cualquier petición de ligas devuelve 401, que es un
+    /// sitio malísimo para enterarse.
+    private var approvalSection: some View {
+        Section {
+            Label {
+                Text("Yahoo tiene que aprobarte primero")
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+            }
+            Link(destination: URL(string: "https://sports.yahoo.com/developer/")!) {
+                Label("Solicitar acceso a Yahoo", systemImage: "arrow.up.right.square")
+            }
+        } footer: {
+            Text("Desde 2025, registrar una app en developer.yahoo.com no basta para leer datos de fantasy: hay que solicitar el acceso, explicar tu producto y esperar a que lo aprueben. Sin aprobación puedes iniciar sesión igual, pero al pedir tus ligas Yahoo responderá 401.")
         }
     }
 
@@ -161,7 +184,7 @@ struct YahooSettingsView: View {
         } header: {
             Text("Tu app de Yahoo")
         } footer: {
-            Text("Se sacan registrando una app en developer.yahoo.com. En «Redirect URI» pega exactamente la dirección que ya viene aquí: Yahoo solo admite direcciones https, y esa es una página que no hace más que devolverte a la app. El scope déjalo vacío: pedir «fspt-r» hace que Yahoo conteste «invalid scope». El client id y el secreto no vienen en el código a propósito —un secreto metido en una app de iPhone lo puede extraer cualquiera— y se guardan en el llavero de este teléfono.")
+            Text("Se sacan registrando una app en developer.yahoo.com. En «Redirect URI» pega exactamente la dirección que ya viene aquí: Yahoo solo admite direcciones https, y esa es una página que no hace más que devolverte a la app. El scope déjalo vacío. El client id y el secreto no vienen en el código a propósito —un secreto metido en una app de iPhone lo puede extraer cualquiera— y se guardan en el llavero de este teléfono.")
         }
     }
 

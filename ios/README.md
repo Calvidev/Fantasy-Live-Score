@@ -591,6 +591,31 @@ igual: son respuestas de unos kilobytes.
 Lo que no está avisa con sus palabras ("Todavía no se pueden leer ligas de…")
 en vez de fallar raro.
 
+### Lo primero: Yahoo tiene que aprobarte
+
+Desde 2025, **registrar una app en developer.yahoo.com no da acceso a los datos
+de fantasy**. Hay que solicitarlo en [sports.yahoo.com/developer](https://sports.yahoo.com/developer/),
+explicar organización, producto y casos de uso, y esperar a que lo aprueben.
+También hay que aceptar un *API Access and Use Agreement* con límites de uso
+—una cuenta por desarrollador, nada de crear cuentas con herramientas
+automáticas, y Yahoo puede limitar el acceso si el consumo se dispara—.
+
+Eso explica en cadena todo lo que parecían tres fallos distintos:
+
+| Síntoma | Causa |
+| --- | --- |
+| El alta no ofrece el permiso *Fantasy Sports* | Ya no se concede al registrar |
+| `invalid scope` al pedir `fspt-r` | La app no tiene ese permiso que conceder |
+| `401` al pedir las ligas | Token válido, pero sin acceso a fantasy |
+
+Ninguno tenía arreglo por código. Por eso la pantalla de Yahoo avisa **antes**
+de pedir credenciales, y un 401 tras renovar el token se traduce a "Yahoo no ha
+aprobado el acceso" en vez de a un número.
+
+Si vas a cobrar por la app, lee el acuerdo antes de construir encima: la misma
+advertencia que hay en `docs/monetizacion.md` sobre Sleeper vale aquí, y aquí sí
+hay un contrato firmado de por medio.
+
 ### El lío de la dirección de vuelta
 
 Yahoo exige registrar una app en developer.yahoo.com para tener un client id y
