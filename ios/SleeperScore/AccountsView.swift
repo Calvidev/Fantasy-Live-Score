@@ -12,6 +12,7 @@ struct AccountsView: View {
     @StateObject private var yahoo = YahooAuth()
 
     @State private var showingYahoo = false
+    @State private var showingYahooLeagues = false
     @State private var showingPaywall = false
     @State private var catalogDate: Date?
     @State private var isRefreshingCatalog = false
@@ -46,6 +47,11 @@ struct AccountsView: View {
             }
             .sheet(isPresented: $showingYahoo) {
                 YahooLoginView(auth: yahoo)
+                    .preferredColorScheme(.dark)
+            }
+            .sheet(isPresented: $showingYahooLeagues) {
+                YahooLeaguesView()
+                    .environmentObject(model)
                     .preferredColorScheme(.dark)
             }
             .task {
@@ -175,6 +181,16 @@ struct AccountsView: View {
                 showingYahoo = true
             } label: {
                 HostRow(host: .yahoo, connection: connections[.yahoo])
+            }
+
+            // Con la sesión ya iniciada, lo que hace falta es elegir liga.
+            if connections[.yahoo] != nil {
+                Button {
+                    showingYahooLeagues = true
+                } label: {
+                    Label("Añadir una liga de Yahoo", systemImage: "plus.circle")
+                        .foregroundStyle(Theme.accent)
+                }
             }
 
             ForEach(HostKind.allCases.filter { !$0.isAvailable }) { host in
@@ -344,7 +360,7 @@ struct YahooLoginView: View {
                             auth.signOut()
                         }
                     } footer: {
-                        Text("El token queda en el llavero compartido, para que el widget y el refresco en segundo plano también puedan pedir datos. Ya puedes añadir ligas de Yahoo desde la pantalla de ligas.")
+                        Text("El token queda en el llavero compartido, para que el widget y el refresco en segundo plano también puedan pedir datos. Cierra esto y usa «Añadir una liga de Yahoo» para elegir liga y equipo.")
                     }
                 } else {
                     Section {

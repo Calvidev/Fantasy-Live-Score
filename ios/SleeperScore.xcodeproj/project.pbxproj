@@ -306,6 +306,10 @@
 			path = YahooAuth.swift;
 			sourceTree = "<group>";
 		};
+		39C044082A752740AB447821 = {
+			isa = PBXBuildFile;
+			fileRef = 9BA0EF44F721249594E655D2 /* YahooLeaguesView.swift */;
+		};
 		3CC877DCD46ABB61F63E8488 = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -434,6 +438,7 @@
 				C2AF9442A8E7CCC9C3394F69 /* ShareCard.swift in SleeperScore */,
 				82606A21EEF631F7A0CCE86C /* SleeperSettingsView.swift in SleeperScore */,
 				8351630F35B9C4E00D24189C /* YahooAuth.swift in SleeperScore */,
+				39C044082A752740AB447821 /* YahooLeaguesView.swift in SleeperScore */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -698,6 +703,7 @@
 				24A2525A50D463D43174024B /* ShareCard.swift */,
 				76D85F12774713AC80C39647 /* SleeperSettingsView.swift */,
 				394D755F24F129EE7716E89F /* YahooAuth.swift */,
+				9BA0EF44F721249594E655D2 /* YahooLeaguesView.swift */,
 				931226496DCE20872776D15D /* Assets.xcassets */,
 				B041D0F408A86A2673A4E9C4 /* Localizable.xcstrings */,
 				17506FF4BE1E0916C2A31EEE /* InfoPlist.xcstrings */,
@@ -811,6 +817,12 @@
 		9A14ACA83648BAAD0A7B4F62 = {
 			isa = PBXBuildFile;
 			fileRef = 207AE7F7BF7702CED53D696C /* Theme.swift */;
+		};
+		9BA0EF44F721249594E655D2 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = YahooLeaguesView.swift;
+			sourceTree = "<group>";
 		};
 		9C9031AFD88F66F18BDF50C4 = {
 			isa = PBXBuildFile;
