@@ -69,26 +69,53 @@ final class YahooAuth: NSObject, ObservableObject {
 
     // MARK: - Entrar
 
-    func signIn() async throws {
-        guard credentials.isComplete else { throw YahooAuthError.missingCredentials }
-        saveCredentials()
+    /// Yahoo no acepta esquemas propios (`loquesea://`) como dirección de
+    /// vuelta: exige `https://` o la palabra `oob`.
+    ///
+    /// `oob` es "out of band": Yahoo enseña el código en pantalla y lo copias a
+    /// mano. Feo, pero es lo único que funciona sin montar un servidor, y aquí
+    /// cada uno registra su propia app de Yahoo.
+    var usesPastedCode: Bool {
+        let destino = credentials.redirectURI.trimmingCharacters(in: .whitespaces).lowercased()
+        return destino == "oob" || destino.isEmpty
+    }
 
-        let estado = UUID().uuidString
+    /// La página de Yahoo a la que hay que ir. Se expone porque con `oob` la
+    /// abre la propia pantalla de ajustes, no una sesión de autenticación.
+    func authorizationURL() throws -> URL {
+        guard credentials.isComplete else { throw YahooAuthError.missingCredentials }
         var componentes = URLComponents(url: authorizeURL, resolvingAgainstBaseURL: false)!
         componentes.queryItems = [
             URLQueryItem(name: "client_id", value: credentials.clientID),
             URLQueryItem(name: "redirect_uri", value: credentials.redirectURI),
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "scope", value: "fspt-r"),  // fantasy, solo lectura
-            URLQueryItem(name: "state", value: estado),
+            URLQueryItem(name: "state", value: UUID().uuidString),
         ]
+        guard let url = componentes.url else { throw YahooAuthError.badRedirect }
+        return url
+    }
+
+    /// El código que Yahoo enseña en pantalla con `oob`, pegado a mano.
+    func connect(pastedCode: String) async throws {
+        let limpio = pastedCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !limpio.isEmpty else { throw YahooAuthError.badRedirect }
+        saveCredentials()
+        try await exchange(code: limpio)
+    }
+
+    func signIn() async throws {
+        guard credentials.isComplete else { throw YahooAuthError.missingCredentials }
+        saveCredentials()
+
+        let componentes = try authorizationURL()
 
         anchor = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .first { $0.activationState == .foregroundActive }?
             .keyWindow
 
-        let vuelta = try await presentLogin(url: componentes.url!)
+        let vuelta = try await presentLogin(url: componentes)
         guard
             let items = URLComponents(url: vuelta, resolvingAgainstBaseURL: false)?.queryItems,
             let codigo = items.first(where: { $0.name == "code" })?.value

@@ -5,6 +5,7 @@
 //  propósito: están para decir "esto viene después", no para engañar.
 
 import SwiftUI
+import UIKit
 
 struct AccountsView: View {
     @EnvironmentObject private var model: ScoreboardModel
@@ -329,6 +330,9 @@ struct YahooLoginView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isWorking = false
     @State private var error: String?
+    /// El código que Yahoo enseña en pantalla cuando la vuelta es `oob`.
+    @State private var pastedCode = ""
+    @State private var openedYahoo = false
 
     var body: some View {
         NavigationStack {
@@ -341,7 +345,7 @@ struct YahooLoginView: View {
                             auth.signOut()
                         }
                     } footer: {
-                        Text("El token queda en el llavero del iPhone. Leer tus ligas de Yahoo es el siguiente paso y todavía no está hecho: el marcador sigue viniendo de Sleeper.")
+                        Text("El token queda en el llavero compartido, para que el widget y el refresco en segundo plano también puedan pedir datos. Ya puedes añadir ligas de Yahoo desde la pantalla de ligas.")
                     }
                 } else {
                     Section {
@@ -355,20 +359,48 @@ struct YahooLoginView: View {
                     } header: {
                         Text("Tu app de Yahoo")
                     } footer: {
-                        Text("Se sacan registrando una app en developer.yahoo.com con permiso de Fantasy Sports de solo lectura. No vienen en el código a propósito: un secreto metido en una app de iPhone lo puede extraer cualquiera. Se guardan en el llavero de este teléfono.")
+                        Text("Se sacan registrando una app en developer.yahoo.com. En «Redirect URI» pon oob: Yahoo no acepta direcciones tipo miapp:// y así te enseña el código en pantalla para pegarlo aquí. No vienen en el código a propósito: un secreto metido en una app de iPhone lo puede extraer cualquiera. Se guardan en el llavero de este teléfono.")
                     }
 
-                    Section {
-                        Button {
-                            Task { await connect() }
-                        } label: {
-                            if isWorking {
-                                HStack { ProgressView(); Text("Abriendo Yahoo…") }
-                            } else {
-                                Text("Iniciar sesión con Yahoo")
+                    if auth.usesPastedCode {
+                        Section {
+                            Button("Abrir Yahoo para autorizar") {
+                                openYahoo()
                             }
+                            .disabled(auth.credentials.clientID.isEmpty)
+                            if openedYahoo {
+                                TextField("Pega aquí el código", text: $pastedCode)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                Button {
+                                    Task { await connectPasted() }
+                                } label: {
+                                    if isWorking {
+                                        HStack { ProgressView(); Text("Conectando…") }
+                                    } else {
+                                        Text("Conectar")
+                                    }
+                                }
+                                .disabled(isWorking || pastedCode.isEmpty)
+                            }
+                        } header: {
+                            Text("Autorizar")
+                        } footer: {
+                            Text("Yahoo abrirá una página, te pedirá permiso y te enseñará un código. Cópialo y pégalo aquí.")
                         }
-                        .disabled(isWorking || !auth.credentials.isComplete)
+                    } else {
+                        Section {
+                            Button {
+                                Task { await connect() }
+                            } label: {
+                                if isWorking {
+                                    HStack { ProgressView(); Text("Abriendo Yahoo…") }
+                                } else {
+                                    Text("Iniciar sesión con Yahoo")
+                                }
+                            }
+                            .disabled(isWorking || !auth.credentials.isComplete)
+                        }
                     }
                 }
 
@@ -397,6 +429,30 @@ struct YahooLoginView: View {
         defer { isWorking = false }
         do {
             try await auth.signIn()
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    /// Con `oob` la página se abre en Safari: no hay dirección de vuelta que
+    /// una sesión de autenticación pueda cazar.
+    private func openYahoo() {
+        error = nil
+        do {
+            UIApplication.shared.open(try auth.authorizationURL())
+            openedYahoo = true
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func connectPasted() async {
+        isWorking = true
+        error = nil
+        defer { isWorking = false }
+        do {
+            try await auth.connect(pastedCode: pastedCode)
+            pastedCode = ""
         } catch {
             self.error = error.localizedDescription
         }
