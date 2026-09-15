@@ -17,9 +17,27 @@ struct YahooCredentials: Codable, Equatable {
     var clientSecret: String
     /// Yahoo obliga a declarar la dirección de vuelta al registrar la app.
     var redirectURI: String
+    /// Qué permisos se piden. **Vacío a propósito.**
+    ///
+    /// El documentado para fantasy es `fspt-r` (lectura), pero Yahoo lo
+    /// rechaza con "invalid scope" en las apps registradas hoy: su formulario
+    /// de alta ya no ofrece el permiso de Fantasy Sports. Sin `scope`, Yahoo
+    /// concede lo que tenga la app registrada, que es como funcionan la
+    /// mayoría de sus integraciones.
+    ///
+    /// Se deja a mano para poder probar otro sin recompilar. Opcional en el
+    /// archivo para que lo guardado por la versión anterior se siga leyendo.
+    var scope: String?
 
     var isComplete: Bool {
         !clientID.isEmpty && !clientSecret.isEmpty && !redirectURI.isEmpty
+    }
+
+    /// El scope ya limpio, o nada si no hay que mandarlo.
+    var requestedScope: String? {
+        guard let scope else { return nil }
+        let limpio = scope.trimmingCharacters(in: .whitespacesAndNewlines)
+        return limpio.isEmpty ? nil : limpio
     }
 }
 

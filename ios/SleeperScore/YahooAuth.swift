@@ -56,7 +56,8 @@ final class YahooAuth: NSObject, ObservableObject {
         credentials = KeychainStore.read(YahooCredentials.self, for: Self.credentialsKey)
             ?? YahooCredentials(
                 clientID: "", clientSecret: "",
-                redirectURI: AppConfig.yahooRedirectURI
+                redirectURI: AppConfig.yahooRedirectURI,
+                scope: nil
             )
         token = KeychainStore.read(YahooToken.self, for: Self.tokenKey)
         super.init()
@@ -92,13 +93,20 @@ final class YahooAuth: NSObject, ObservableObject {
     func authorizationURL() throws -> URL {
         guard credentials.isComplete else { throw YahooAuthError.missingCredentials }
         var componentes = URLComponents(url: authorizeURL, resolvingAgainstBaseURL: false)!
-        componentes.queryItems = [
+        var parametros = [
             URLQueryItem(name: "client_id", value: credentials.clientID),
             URLQueryItem(name: "redirect_uri", value: credentials.redirectURI),
             URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "scope", value: "fspt-r"),  // fantasy, solo lectura
             URLQueryItem(name: "state", value: UUID().uuidString),
         ]
+        // Solo si hay uno puesto. Mandar `fspt-r` —el documentado para
+        // fantasy— hace que Yahoo conteste "invalid scope" en las apps
+        // registradas hoy: su formulario de alta ya no ofrece ese permiso.
+        // Sin `scope`, concede lo que tenga la app.
+        if let scope = credentials.requestedScope {
+            parametros.append(URLQueryItem(name: "scope", value: scope))
+        }
+        componentes.queryItems = parametros
         guard let url = componentes.url else { throw YahooAuthError.badRedirect }
         return url
     }

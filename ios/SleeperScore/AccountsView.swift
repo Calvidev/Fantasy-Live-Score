@@ -355,10 +355,16 @@ struct YahooLoginView: View {
                         TextField("Redirect URI", text: $auth.credentials.redirectURI)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
+                        TextField("Scope (déjalo vacío)", text: Binding(
+                            get: { auth.credentials.scope ?? "" },
+                            set: { auth.credentials.scope = $0 }
+                        ))
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
                     } header: {
                         Text("Tu app de Yahoo")
                     } footer: {
-                        Text("Se sacan registrando una app en developer.yahoo.com. En «Redirect URI» pega exactamente la dirección que ya viene aquí abajo: Yahoo solo admite direcciones https, y esa es una página que no hace más que devolverte a la app. El client id y el secreto no vienen en el código a propósito —un secreto metido en una app de iPhone lo puede extraer cualquiera— y se guardan en el llavero de este teléfono.")
+                        Text("Se sacan registrando una app en developer.yahoo.com. En «Redirect URI» pega exactamente la dirección que ya viene aquí: Yahoo solo admite direcciones https, y esa es una página que no hace más que devolverte a la app. El scope déjalo vacío: pedir «fspt-r» hace que Yahoo conteste «invalid scope», porque su formulario de alta ya no ofrece el permiso de Fantasy Sports; sin scope concede lo que tenga la app. El client id y el secreto no vienen en el código a propósito —un secreto metido en una app de iPhone lo puede extraer cualquiera— y se guardan en el llavero de este teléfono.")
                     }
 
                     Section {

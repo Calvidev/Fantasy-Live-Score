@@ -620,6 +620,21 @@ Si el sistema bloquea ese salto, el código se queda a la vista en la web y la
 pantalla de Yahoo tiene un "¿No volvió sola?" para pegarlo a mano. Nunca te
 quedas tirado.
 
+### El scope: mejor no pedir nada
+
+El permiso documentado para fantasy es `fspt-r` (lectura). Yahoo lo rechaza con
+**`invalid scope`** en las apps registradas hoy, y encaja con lo que se ve al
+darlas de alta: su formulario ya no ofrece el permiso de *Fantasy Sports*, solo
+*OpenID Connect* y *TW Auction*.
+
+Así que la petición de autorización **no manda `scope`**, y Yahoo concede lo que
+tenga la app registrada. Hay un campo en Ajustes → Yahoo para poner uno a mano,
+vacío por defecto, para poder probar otro sin recompilar.
+
+Si aun sin scope los datos de fantasy devuelven 401, entonces sí: Yahoo habría
+cerrado esa API a las apps nuevas, y la salida sería ESPN. La costura ya está
+hecha, así que sería bastante menos trabajo que esto.
+
 Para que funcione hacen falta dos cosas fuera del código: **GitHub Pages
 encendido** en el repositorio (Settings → Pages → rama `main`, carpeta `/docs`)
 y que la dirección registrada en Yahoo coincida **letra por letra** con
