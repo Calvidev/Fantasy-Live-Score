@@ -356,6 +356,14 @@ struct YahooLoginView: View {
                     Section {
                         Label("Sesión iniciada", systemImage: "checkmark.seal.fill")
                             .foregroundStyle(Theme.accent)
+                        // Lo concedido, no lo pedido. Si aquí no sale nada de
+                        // fantasy, ninguna petición de ligas va a funcionar por
+                        // mucho que el login diga que todo fue bien.
+                        LabeledContent("Permisos") {
+                            Text(auth.token?.grantedScope ?? "sin especificar")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                         Button("Cerrar sesión", role: .destructive) {
                             auth.signOut()
                         }

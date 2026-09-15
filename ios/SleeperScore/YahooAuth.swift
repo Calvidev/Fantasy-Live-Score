@@ -221,12 +221,16 @@ final class YahooAuth: NSObject, ObservableObject {
             let refreshToken: String?
             let expiresIn: Int?
             let xoauthYahooGuid: String?
+            /// Lo que Yahoo concedió de verdad, que no tiene por qué ser lo
+            /// pedido. Aquí es el dato que dice si el token sirve para fantasy.
+            let scope: String?
 
             enum CodingKeys: String, CodingKey {
                 case accessToken = "access_token"
                 case refreshToken = "refresh_token"
                 case expiresIn = "expires_in"
                 case xoauthYahooGuid = "xoauth_yahoo_guid"
+                case scope
             }
         }
 
@@ -235,7 +239,8 @@ final class YahooAuth: NSObject, ObservableObject {
             accessToken: decodificada.accessToken,
             refreshToken: decodificada.refreshToken ?? refreshToken,
             expiresAt: decodificada.expiresIn.map { Date().addingTimeInterval(TimeInterval($0)) },
-            accountName: decodificada.xoauthYahooGuid ?? token?.accountName
+            accountName: decodificada.xoauthYahooGuid ?? token?.accountName,
+            grantedScope: decodificada.scope ?? token?.grantedScope
         )
         token = nuevo
         KeychainStore.save(nuevo, for: Self.tokenKey)

@@ -61,6 +61,11 @@ struct YahooToken: Codable, Equatable {
     var refreshToken: String?
     var expiresAt: Date?
     var accountName: String?
+    /// Los permisos que Yahoo **concedió**, que no tienen por qué ser los
+    /// pedidos. Es la única forma de saber si el token sirve para fantasy sin
+    /// esperar a que una petición devuelva 401. Opcional para que un token
+    /// guardado por la versión anterior se siga leyendo.
+    var grantedScope: String?
 
     var isExpired: Bool {
         guard let expiresAt else { return false }
@@ -86,8 +91,8 @@ enum YahooError: LocalizedError {
             return String(localized: "Faltan el client id y el secreto de tu app de Yahoo.")
         case let .refreshFailed(detalle):
             return String(localized: "Yahoo no renovó la sesión: \(detalle). Vuelve a entrar.")
-        case let .badStatus(codigo, ruta):
-            return String(localized: "Yahoo respondió \(codigo) en \(ruta).")
+        case let .badStatus(codigo, detalle):
+            return String(localized: "Yahoo respondió \(codigo): \(detalle)")
         case let .network(detalle):
             return String(localized: "No se pudo conectar con Yahoo: \(detalle)")
         case let .unreadable(que):
@@ -163,7 +168,13 @@ actor YahooSession {
                 return try await raw(path, reintentando: true)
             }
             guard (200..<300).contains(codigo) else {
-                throw YahooError.badStatus(codigo, path)
+                // El cuerpo dice qué falta; el número solo, no.
+                let cuerpo = (String(data: datos, encoding: .utf8) ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let permisos = KeychainStore.read(YahooToken.self, for: Self.tokenKey)?
+                    .grantedScope ?? "ninguno"
+                let explicacion = cuerpo.isEmpty ? path : "\(path) — \(cuerpo.prefix(300))"
+                throw YahooError.badStatus(codigo, "\(explicacion) · permisos del token: \(permisos)")
             }
             dump(datos)
             return datos
@@ -236,10 +247,12 @@ actor YahooSession {
             let accessToken: String
             let refreshToken: String?
             let expiresIn: Int?
+            let scope: String?
             enum CodingKeys: String, CodingKey {
                 case accessToken = "access_token"
                 case refreshToken = "refresh_token"
                 case expiresIn = "expires_in"
+                case scope
             }
         }
         guard let nueva = try? JSONDecoder().decode(Respuesta.self, from: datos) else {
@@ -251,7 +264,8 @@ actor YahooSession {
             // el de antes, y perderlo obligaría a volver a entrar a mano.
             refreshToken: nueva.refreshToken ?? actual.refreshToken,
             expiresAt: nueva.expiresIn.map { Date().addingTimeInterval(TimeInterval($0)) },
-            accountName: actual.accountName
+            accountName: actual.accountName,
+            grantedScope: nueva.scope ?? actual.grantedScope
         )
         KeychainStore.save(nuevo, for: Self.tokenKey)
     }
