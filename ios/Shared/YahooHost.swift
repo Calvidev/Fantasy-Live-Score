@@ -40,22 +40,44 @@ struct YahooHost {
         }
     }
 
-    /// Los equipos de una liga, para elegir el tuyo. El que es tuyo viene
-    /// marcado por Yahoo con `is_owned_by_current_login`.
+    /// Los equipos de una liga, para elegir el tuyo.
+    ///
+    /// Cuál es el tuyo se pregunta aparte, en vez de buscar una marca dentro de
+    /// cada equipo: Yahoo tiene una ruta que devuelve **solo** los equipos del
+    /// usuario que ha entrado, y eso no hay que adivinarlo.
     func teams(in leagueKey: String) async throws -> (leagueName: String, teams: [LeagueTeam]) {
-        let arbol = try await session.get("league/\(leagueKey)/teams")
+        async let arbolTask = session.get("league/\(leagueKey)/teams")
+        async let miosTask = myTeamKeys()
+
+        let arbol = try await arbolTask
+        let mios = await miosTask
+
         let nombre = arbol.find("league")?.text("name") ?? "Liga de Yahoo"
-        let equipos = arbol.findAll("team").compactMap { equipo -> LeagueTeam? in
+        let equipos = arbol.findAll("team").flatMap { nodo -> [JSONValue] in
+            nodo.find("team_key") != nil ? [nodo] : nodo.elements
+        }
+        .compactMap { equipo -> LeagueTeam? in
             guard let clave = equipo.text("team_key") else { return nil }
             return LeagueTeam(
                 rosterID: Self.teamNumber(from: clave) ?? 0,
                 name: equipo.text("name") ?? "Equipo",
                 avatarURL: equipo.find("team_logos")?.url("url"),
-                record: nil,
-                ownerIDs: equipo.int("is_owned_by_current_login") == 1 ? ["me"] : []
+                record: equipo.find("outcome_totals").map { resultado in
+                    "\(resultado.int("wins") ?? 0)-\(resultado.int("losses") ?? 0)"
+                },
+                ownerIDs: mios.contains(clave) ? ["me"] : []
             )
         }
         return (nombre, equipos)
+    }
+
+    /// Las claves de los equipos que lleva quien ha entrado, en todas sus
+    /// ligas de NFL. Si falla, no pasa nada: se elige el equipo a mano.
+    private func myTeamKeys() async -> Set<String> {
+        guard let arbol = try? await session.get(
+            "users;use_login=1/games;game_keys=nfl/teams"
+        ) else { return [] }
+        return Set(arbol.findAll("team_key").compactMap(\.text))
     }
 
     // MARK: - Marcador
@@ -116,7 +138,13 @@ struct YahooHost {
             recentPlays: nil
         )
         snapshot.liveWeek = jornadaEnCurso
-        snapshot.projection = WinProbability.compute(for: snapshot)
+        // Yahoo da hechas las dos cosas que en Sleeper hay que calcular: el
+        // total proyectado de cada equipo y la probabilidad de ganar. Usar las
+        // suyas es mejor que estimarlas —son las que ve el usuario en su app—
+        // y de paso desaparece la discusión de si la proyección cuadra.
+        snapshot.projection = Self.projection(
+            mine: mio, theirs: suyo, snapshot: snapshot
+        ) ?? WinProbability.compute(for: snapshot)
         // Yahoo ya aplica las reglas de la liga antes de dar los puntos, así
         // que no hay nada que etiquetar: no existe un "PPR" que enseñar.
         snapshot.scoringLabel = nil
@@ -202,8 +230,10 @@ struct YahooHost {
     private func roster(teamKey: String?, week: Int) async -> [RosterEntry] {
         // Sin rival (jornada de descanso) no hay nada que pedir.
         guard let teamKey else { return [] }
-        // Los puntos de cada jugador van en la misma llamada que la alineación.
-        let ruta = "team/\(teamKey)/roster;week=\(week)/players/stats;type=week;week=\(week)"
+        // La ruta documentada. `players` es el sub-recurso por defecto del
+        // roster, así que ponerlo explícito es lo máximo que se puede pedir
+        // sin salirse de lo que Yahoo garantiza.
+        let ruta = "team/\(teamKey)/roster;week=\(week)/players"
         guard let arbol = try? await session.get(ruta) else { return [] }
 
         return arbol.findAll("player").flatMap { nodo -> [JSONValue] in
@@ -264,6 +294,39 @@ struct YahooHost {
             record: equipo.find("outcome_totals").map { resultado in
                 "\(resultado.int("wins") ?? 0)-\(resultado.int("losses") ?? 0)"
             }
+        )
+    }
+
+    /// La proyección tal cual la da Yahoo, si la da.
+    ///
+    /// `team_projected_points` y `win_probability` vienen en el marcador. Si
+    /// faltan (jornada sin empezar, liga rara), se vuelve a la estimación
+    /// propia, que es la misma que usa Sleeper.
+    private static func projection(
+        mine: JSONValue, theirs: JSONValue?, snapshot: MatchupSnapshot
+    ) -> MatchupProjection? {
+        guard
+            let theirs,
+            let proyectadoMio = mine.find("team_projected_points")?.double("total"),
+            let proyectadoSuyo = theirs.find("team_projected_points")?.double("total")
+        else { return nil }
+
+        // Yahoo la da de 0 a 1 en el equipo que gana la ve; si no viene, se
+        // deduce de los dos proyectados.
+        let probabilidad = mine.double("win_probability")
+            ?? (proyectadoMio + proyectadoSuyo > 0
+                ? proyectadoMio / (proyectadoMio + proyectadoSuyo)
+                : 0.5)
+
+        let titulares = snapshot.lineup
+        return MatchupProjection(
+            mine: proyectadoMio,
+            theirs: proyectadoSuyo,
+            remainingMine: max(0, proyectadoMio - snapshot.me.points),
+            remainingTheirs: max(0, proyectadoSuyo - snapshot.opponentPoints),
+            winProbability: min(max(probabilidad, 0.01), 0.99),
+            playersLeftMine: titulares.filter { ($0.mine?.points ?? 0) == 0 }.count,
+            playersLeftTheirs: titulares.filter { ($0.theirs?.points ?? 0) == 0 }.count
         )
     }
 

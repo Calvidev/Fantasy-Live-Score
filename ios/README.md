@@ -575,6 +575,33 @@ subárbol por niveles hasta dar con la clave, y `findAll("team")` saca los dos
 equipos de un enfrentamiento sin bajar dentro de cada uno. Es más lento y da
 igual: son respuestas de unos kilobytes.
 
+### Contrastado con la documentación
+
+Todas las rutas que usa la app salen del manual de Yahoo, no de suposiciones:
+
+| Para qué | Ruta |
+| --- | --- |
+| Tus ligas | `users;use_login=1/games;game_keys=nfl/leagues` |
+| Tus equipos | `users;use_login=1/games;game_keys=nfl/teams` |
+| Datos de la liga | `league/{key}` |
+| Marcador | `league/{key}/scoreboard;week={n}` |
+| Alineación | `team/{key}/roster;week={n}/players` |
+| Clasificación | `league/{key}/standings` |
+| Equipos de la liga | `league/{key}/teams` |
+
+Y Yahoo regala dos cosas que en Sleeper hay que calcular: **`team_projected_points`**
+y **`win_probability`** vienen hechas en el marcador. Se usan las suyas —son las
+que el usuario ve en su propia app— y solo se estima cuando faltan. La discusión
+de si la proyección cuadra, que con Sleeper costó tres intentos, en Yahoo no
+existe.
+
+Cuál es *tu* equipo tampoco se adivina buscando una marca dentro de cada equipo:
+hay una ruta que devuelve solo los del usuario que ha entrado.
+
+Tres campos que la app lee y **no** están en el manual, así que pueden venir
+vacíos sin que eso rompa nada: `player_projected_points` (proyección por
+jugador), `status_full` (la lesión en texto largo) y `is_owned_by_current_login`.
+
 ### Qué funciona y qué no
 
 | | Sleeper | Yahoo |
