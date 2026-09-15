@@ -55,7 +55,8 @@ final class YahooAuth: NSObject, ObservableObject {
     override init() {
         credentials = KeychainStore.read(YahooCredentials.self, for: Self.credentialsKey)
             ?? YahooCredentials(
-                clientID: "", clientSecret: "", redirectURI: "sleeperscore://yahoo"
+                clientID: "", clientSecret: "",
+                redirectURI: AppConfig.yahooRedirectURI
             )
         token = KeychainStore.read(YahooToken.self, for: Self.tokenKey)
         super.init()
@@ -69,12 +70,18 @@ final class YahooAuth: NSObject, ObservableObject {
 
     // MARK: - Entrar
 
-    /// Yahoo no acepta esquemas propios (`loquesea://`) como dirección de
-    /// vuelta: exige `https://` o la palabra `oob`.
+    /// El esquema por el que vuelve el código a la app.
     ///
-    /// `oob` es "out of band": Yahoo enseña el código en pantalla y lo copias a
-    /// mano. Feo, pero es lo único que funciona sin montar un servidor, y aquí
-    /// cada uno registra su propia app de Yahoo.
+    /// No sale de la dirección de vuelta a propósito. Yahoo **solo** admite
+    /// direcciones `https://` —ni esquemas propios ni `oob`, las dos cosas las
+    /// rechaza al registrar la app—, así que la vuelta es una página web que no
+    /// hace más que rebotar aquí: `docs/yahoo.html`, servida por GitHub Pages.
+    /// La página lee el código de su propia barra de direcciones y salta a
+    /// `sleeperscore://yahoo?code=…`, que es lo que caza la sesión.
+    static let callbackScheme = "sleeperscore"
+
+    /// La dirección de vuelta no es un esquema propio, así que hay que esperar
+    /// el rebote de la página (o pegar el código a mano).
     var usesPastedCode: Bool {
         let destino = credentials.redirectURI.trimmingCharacters(in: .whitespaces).lowercased()
         return destino == "oob" || destino.isEmpty
@@ -140,7 +147,12 @@ final class YahooAuth: NSObject, ObservableObject {
     // MARK: - Interno
 
     private func presentLogin(url: URL) async throws -> URL {
-        let esquema = URL(string: credentials.redirectURI)?.scheme
+        // Con una vuelta https, lo que hay que cazar es el salto que da la
+        // página de rebote, no el https en sí.
+        let declarado = URL(string: credentials.redirectURI)?.scheme?.lowercased()
+        let esquema = (declarado == nil || declarado == "http" || declarado == "https")
+            ? Self.callbackScheme
+            : declarado
         return try await withCheckedThrowingContinuation { continuation in
             let sesion = ASWebAuthenticationSession(
                 url: url, callbackURLScheme: esquema

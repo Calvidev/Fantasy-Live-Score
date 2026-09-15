@@ -30,6 +30,17 @@
 	<array>
 		<string>fetch</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>dev.calvi.sleeperscore</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>sleeperscore</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key>

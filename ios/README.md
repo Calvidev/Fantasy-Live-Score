@@ -591,11 +591,41 @@ igual: son respuestas de unos kilobytes.
 Lo que no está avisa con sus palabras ("Todavía no se pueden leer ligas de…")
 en vez de fallar raro.
 
-### Probarlo
+### El lío de la dirección de vuelta
 
 Yahoo exige registrar una app en developer.yahoo.com para tener un client id y
 un secreto; no vienen en el código porque un secreto dentro de una app de
 iPhone no es un secreto. Se piden una vez en Ajustes y se guardan en el llavero.
+
+Y al registrarla pide una **Redirect URI**, que es donde te devuelve con el
+código. Ahí Yahoo solo admite `https://`:
+
+| Lo que se intentó | Qué pasa |
+| --- | --- |
+| `sleeperscore://yahoo` | *Invalid URI* al registrar la app |
+| `oob` (el código en pantalla, a mano) | *Invalid URI* — ya no lo acepta |
+| `https://…` | Funciona, pero una app no tiene sitio web |
+
+La salida es `docs/yahoo.html`, servida por **GitHub Pages**. Es la dirección de
+vuelta registrada, y no hace nada más que rebotar: lee el código de su propia
+barra de direcciones y salta a `sleeperscore://yahoo?code=…`, que es lo que caza
+`ASWebAuthenticationSession`. No hay servidor, ni base de datos, ni nada que
+guarde el código — es un archivo estático de cuatro kilobytes.
+
+Por eso el esquema de vuelta (`YahooAuth.callbackScheme`) **no** sale de la
+dirección registrada: la dirección es `https` y lo que hay que cazar es el salto
+que da la página.
+
+Si el sistema bloquea ese salto, el código se queda a la vista en la web y la
+pantalla de Yahoo tiene un "¿No volvió sola?" para pegarlo a mano. Nunca te
+quedas tirado.
+
+Para que funcione hacen falta dos cosas fuera del código: **GitHub Pages
+encendido** en el repositorio (Settings → Pages → rama `main`, carpeta `/docs`)
+y que la dirección registrada en Yahoo coincida **letra por letra** con
+`AppConfig.yahooRedirectURI`.
+
+### Probarlo
 
 El token se guarda en el llavero **compartido**, no en el de la app: el widget y
 el refresco en segundo plano también piden datos y corren sin interfaz.

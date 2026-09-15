@@ -5,7 +5,6 @@
 //  propósito: están para decir "esto viene después", no para engañar.
 
 import SwiftUI
-import UIKit
 
 struct AccountsView: View {
     @EnvironmentObject private var model: ScoreboardModel
@@ -332,7 +331,7 @@ struct YahooLoginView: View {
     @State private var error: String?
     /// El código que Yahoo enseña en pantalla cuando la vuelta es `oob`.
     @State private var pastedCode = ""
-    @State private var openedYahoo = false
+    @State private var showPasteBox = false
 
     var body: some View {
         NavigationStack {
@@ -359,48 +358,37 @@ struct YahooLoginView: View {
                     } header: {
                         Text("Tu app de Yahoo")
                     } footer: {
-                        Text("Se sacan registrando una app en developer.yahoo.com. En «Redirect URI» pon oob: Yahoo no acepta direcciones tipo miapp:// y así te enseña el código en pantalla para pegarlo aquí. No vienen en el código a propósito: un secreto metido en una app de iPhone lo puede extraer cualquiera. Se guardan en el llavero de este teléfono.")
+                        Text("Se sacan registrando una app en developer.yahoo.com. En «Redirect URI» pega exactamente la dirección que ya viene aquí abajo: Yahoo solo admite direcciones https, y esa es una página que no hace más que devolverte a la app. El client id y el secreto no vienen en el código a propósito —un secreto metido en una app de iPhone lo puede extraer cualquiera— y se guardan en el llavero de este teléfono.")
                     }
 
-                    if auth.usesPastedCode {
-                        Section {
-                            Button("Abrir Yahoo para autorizar") {
-                                openYahoo()
+                    Section {
+                        Button {
+                            Task { await connect() }
+                        } label: {
+                            if isWorking {
+                                HStack { ProgressView(); Text("Abriendo Yahoo…") }
+                            } else {
+                                Text("Iniciar sesión con Yahoo")
                             }
-                            .disabled(auth.credentials.clientID.isEmpty)
-                            if openedYahoo {
-                                TextField("Pega aquí el código", text: $pastedCode)
-                                    .textInputAutocapitalization(.never)
-                                    .autocorrectionDisabled()
-                                Button {
-                                    Task { await connectPasted() }
-                                } label: {
-                                    if isWorking {
-                                        HStack { ProgressView(); Text("Conectando…") }
-                                    } else {
-                                        Text("Conectar")
-                                    }
-                                }
-                                .disabled(isWorking || pastedCode.isEmpty)
-                            }
-                        } header: {
-                            Text("Autorizar")
-                        } footer: {
-                            Text("Yahoo abrirá una página, te pedirá permiso y te enseñará un código. Cópialo y pégalo aquí.")
                         }
-                    } else {
-                        Section {
-                            Button {
-                                Task { await connect() }
-                            } label: {
-                                if isWorking {
-                                    HStack { ProgressView(); Text("Abriendo Yahoo…") }
-                                } else {
-                                    Text("Iniciar sesión con Yahoo")
-                                }
+                        .disabled(isWorking || !auth.credentials.isComplete)
+                    }
+
+                    // Plan B. El salto de la página de vuelta a la app lo puede
+                    // bloquear el sistema, y entonces el código se queda en
+                    // pantalla: esto es para pegarlo y no quedarse tirado.
+                    Section {
+                        DisclosureGroup("¿No volvió sola?", isExpanded: $showPasteBox) {
+                            TextField("Pega aquí el código", text: $pastedCode)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                            Button("Conectar con ese código") {
+                                Task { await connectPasted() }
                             }
-                            .disabled(isWorking || !auth.credentials.isComplete)
+                            .disabled(isWorking || pastedCode.isEmpty)
                         }
+                    } footer: {
+                        Text("Si al autorizar te quedaste en la página web con un código a la vista, cópialo y pégalo aquí.")
                     }
                 }
 
@@ -429,18 +417,6 @@ struct YahooLoginView: View {
         defer { isWorking = false }
         do {
             try await auth.signIn()
-        } catch {
-            self.error = error.localizedDescription
-        }
-    }
-
-    /// Con `oob` la página se abre en Safari: no hay dirección de vuelta que
-    /// una sesión de autenticación pueda cazar.
-    private func openYahoo() {
-        error = nil
-        do {
-            UIApplication.shared.open(try auth.authorizationURL())
-            openedYahoo = true
         } catch {
             self.error = error.localizedDescription
         }
