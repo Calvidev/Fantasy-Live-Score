@@ -39,6 +39,21 @@ struct YahooCredentials: Codable, Equatable {
         let limpio = scope.trimmingCharacters(in: .whitespacesAndNewlines)
         return limpio.isEmpty ? nil : limpio
     }
+
+    /// Sin espacios ni saltos de línea alrededor.
+    ///
+    /// Copiar un secreto en un teléfono y pegarlo en un campo arrastra un
+    /// espacio o un salto con muchísima facilidad, y ese carácter de más viaja
+    /// escapado hasta Yahoo, que contesta "Invalid client secret" sin decir
+    /// que el problema es un espacio.
+    var sanitized: YahooCredentials {
+        YahooCredentials(
+            clientID: clientID.trimmingCharacters(in: .whitespacesAndNewlines),
+            clientSecret: clientSecret.trimmingCharacters(in: .whitespacesAndNewlines),
+            redirectURI: redirectURI.trimmingCharacters(in: .whitespacesAndNewlines),
+            scope: scope
+        )
+    }
 }
 
 struct YahooToken: Codable, Equatable {
@@ -190,26 +205,32 @@ actor YahooSession {
         }
 
         let campos: [String: String] = [
-            "client_id": credenciales.clientID,
-            "client_secret": credenciales.clientSecret,
-            "redirect_uri": credenciales.redirectURI,
+            "redirect_uri": credenciales.sanitized.redirectURI,
             "grant_type": "refresh_token",
             "refresh_token": refrescar,
         ]
-        var peticion = URLRequest(url: tokenURL)
-        peticion.httpMethod = "POST"
-        peticion.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        peticion.httpBody = YahooSession.formBody(campos)
 
-        let (datos, respuesta): (Data, URLResponse)
-        do {
-            (datos, respuesta) = try await session.data(for: peticion)
-        } catch {
-            throw YahooError.network(error.localizedDescription)
+        // Las dos formas de identificarse, igual que en el login.
+        var datos = Data()
+        var detalle = "sin detalle"
+        for conBasic in [true, false] {
+            let peticion = YahooSession.tokenRequest(
+                url: tokenURL, fields: campos, credentials: credenciales, useBasic: conBasic
+            )
+            let (cuerpo, respuesta): (Data, URLResponse)
+            do {
+                (cuerpo, respuesta) = try await session.data(for: peticion)
+            } catch {
+                throw YahooError.network(error.localizedDescription)
+            }
+            if let http = respuesta as? HTTPURLResponse, (200..<300).contains(http.statusCode) {
+                datos = cuerpo
+                detalle = ""
+                break
+            }
+            detalle = String(data: cuerpo, encoding: .utf8) ?? "sin detalle"
         }
-        guard let http = respuesta as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw YahooError.refreshFailed(String(data: datos, encoding: .utf8) ?? "sin detalle")
-        }
+        guard detalle.isEmpty else { throw YahooError.refreshFailed(detalle) }
 
         struct Respuesta: Decodable {
             let accessToken: String
@@ -233,6 +254,38 @@ actor YahooSession {
             accountName: actual.accountName
         )
         KeychainStore.save(nuevo, for: Self.tokenKey)
+    }
+
+    /// La petición de canje de token, que usan tanto el login de la app como
+    /// la renovación de aquí.
+    ///
+    /// `useBasic` decide cómo se identifica la app. Yahoo documenta la
+    /// cabecera `Authorization: Basic`, pero también hay integraciones que le
+    /// mandan el client id y el secreto en el cuerpo; cuál acepta depende de
+    /// cómo esté registrada. Se prueba primero la documentada y, si la rechaza,
+    /// la otra: así una sola compilación da la respuesta.
+    static func tokenRequest(
+        url: URL,
+        fields: [String: String],
+        credentials: YahooCredentials,
+        useBasic: Bool
+    ) -> URLRequest {
+        let limpias = credentials.sanitized
+        var campos = fields
+        var peticion = URLRequest(url: url)
+        peticion.httpMethod = "POST"
+        peticion.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+
+        if useBasic {
+            let pareja = "\(limpias.clientID):\(limpias.clientSecret)"
+            let codificada = Data(pareja.utf8).base64EncodedString()
+            peticion.setValue("Basic \(codificada)", forHTTPHeaderField: "Authorization")
+        } else {
+            campos["client_id"] = limpias.clientID
+            campos["client_secret"] = limpias.clientSecret
+        }
+        peticion.httpBody = formBody(campos)
+        return peticion
     }
 
     /// `application/x-www-form-urlencoded` de verdad: los espacios son `+` y

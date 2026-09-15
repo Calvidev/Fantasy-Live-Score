@@ -66,6 +66,7 @@ final class YahooAuth: NSObject, ObservableObject {
     var isConnected: Bool { token != nil }
 
     func saveCredentials() {
+        credentials = credentials.sanitized
         KeychainStore.save(credentials, for: Self.credentialsKey)
     }
 
@@ -93,9 +94,10 @@ final class YahooAuth: NSObject, ObservableObject {
     func authorizationURL() throws -> URL {
         guard credentials.isComplete else { throw YahooAuthError.missingCredentials }
         var componentes = URLComponents(url: authorizeURL, resolvingAgainstBaseURL: false)!
+        let limpias = credentials.sanitized
         var parametros = [
-            URLQueryItem(name: "client_id", value: credentials.clientID),
-            URLQueryItem(name: "redirect_uri", value: credentials.redirectURI),
+            URLQueryItem(name: "client_id", value: limpias.clientID),
+            URLQueryItem(name: "redirect_uri", value: limpias.redirectURI),
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "state", value: UUID().uuidString),
         ]
@@ -182,9 +184,7 @@ final class YahooAuth: NSObject, ObservableObject {
 
     private func exchange(code: String? = nil, refreshToken: String? = nil) async throws {
         var campos: [String: String] = [
-            "client_id": credentials.clientID,
-            "client_secret": credentials.clientSecret,
-            "redirect_uri": credentials.redirectURI,
+            "redirect_uri": credentials.sanitized.redirectURI,
         ]
         if let code {
             campos["grant_type"] = "authorization_code"
@@ -194,17 +194,25 @@ final class YahooAuth: NSObject, ObservableObject {
             campos["refresh_token"] = refreshToken
         }
 
-        var peticion = URLRequest(url: tokenURL)
-        peticion.httpMethod = "POST"
-        peticion.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        peticion.httpBody = campos
-            .map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? $0.value)" }
-            .joined(separator: "&")
-            .data(using: .utf8)
-
-        let (datos, respuesta) = try await URLSession.shared.data(for: peticion)
-        guard let http = respuesta as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            let detalle = String(data: datos, encoding: .utf8) ?? "sin detalle"
+        // Primero como lo documenta Yahoo (cabecera Basic) y, si lo rechaza,
+        // con el secreto en el cuerpo. Depende de cómo esté registrada la app,
+        // y probar las dos aquí ahorra una compilación entera.
+        var datos = Data()
+        var detalle = "sin detalle"
+        for conBasic in [true, false] {
+            let peticion = YahooSession.tokenRequest(
+                url: tokenURL, fields: campos, credentials: credentials, useBasic: conBasic
+            )
+            let (cuerpo, respuesta) = try await URLSession.shared.data(for: peticion)
+            if let http = respuesta as? HTTPURLResponse, (200..<300).contains(http.statusCode) {
+                datos = cuerpo
+                detalle = ""
+                break
+            }
+            let texto = String(data: cuerpo, encoding: .utf8) ?? "sin detalle"
+            detalle = conBasic ? "con cabecera Basic: \(texto)" : "\(detalle) · en el cuerpo: \(texto)"
+        }
+        guard detalle.isEmpty else {
             throw YahooAuthError.tokenExchange(detalle)
         }
 
