@@ -64,6 +64,21 @@ struct WeekStats: Codable {
     }
 }
 
+extension WeekStats {
+    /// Una jornada suelta, sin pasar por la caché.
+    ///
+    /// La caché guarda **una** jornada y es la de hoy, que es la que necesitan
+    /// el widget y la Live Activity. Al mirar atrás no se puede pisar: se pide
+    /// aparte y se usa solo para esa pantalla.
+    static func fetch(season: String, week: Int) async -> WeekStats? {
+        guard
+            let crudas: [String: [String: Double]] = try? await SleeperAPI.shared
+                .get("/stats/nfl/regular/\(season)/\(week)")
+        else { return nil }
+        return WeekStats(byPlayer: crudas, season: season, week: week, savedAt: Date())
+    }
+}
+
 actor WeekStatsStore {
     static let shared = WeekStatsStore()
 

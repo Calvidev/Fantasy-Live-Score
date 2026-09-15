@@ -104,6 +104,17 @@ struct MatchupSnapshot: Codable, Hashable {
     var bench: [PlayerLine]?
     /// Lo que costó no alinear lo mejor posible.
     var benchReport: BenchReport?
+    /// La jornada que Sleeper da por buena ahora mismo. Con `week` dice si lo
+    /// que se está mirando es la jornada en curso o una pasada, y hasta dónde
+    /// llega el selector de semanas. Opcional: lo guardado por la versión
+    /// anterior no lo trae.
+    var liveWeek: Int?
+
+    /// Se está mirando una jornada que ya terminó.
+    var isPastWeek: Bool {
+        guard let liveWeek else { return false }
+        return week < liveWeek
+    }
 
     /// Las anotaciones, sin tener que desenvolver el opcional en cada vista.
     var plays: [ScoringPlay] { recentPlays ?? [] }

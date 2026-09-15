@@ -208,6 +208,39 @@ gratuita funciona, pero se queda quieta mientras no abras la app. Cuando pases a
 cuenta de pago, añadir el push son unas pocas líneas: `Activity.request` ya está
 preparado para recibir un `pushType`.
 
+## Cambiar de jornada
+
+El "Semana N" de la cabecera es un menú: se toca y salen todas las jornadas
+jugadas, de la más reciente a la primera. La de hoy va marcada "en curso".
+
+**Qué jornada es la de hoy no lo decide la app**: lo dice Sleeper en
+`/state/nfl` (`display_week`), y la app se limita a seguirlo. Sleeper pasa a la
+semana siguiente el **martes por la mañana**, cuando cierra el Monday Night, no
+a medianoche del domingo. Así que un lunes con los partidos acabados se sigue
+viendo la semana 1 con la etiqueta "jornada cerrada", y al día siguiente cambia
+sola sin tocar nada.
+
+Mirar atrás es solo mirar. Una jornada pasada:
+
+- **no se guarda en el grupo de apps.** El widget y la Live Activity siguen con
+  la jornada de hoy, que es lo que quiere quien los mira.
+- **no pasa por el detector de anotaciones.** Comparar la semana 1 cerrada con
+  el marcador de hoy fabricaría una "anotación" por cada jugador, y sonarían
+  todas.
+- **se pide con sus propias estadísticas.** La caché de yardas y proyecciones
+  guarda **una** semana y es la de hoy; enseñar las yardas de la semana 2 en el
+  marcador de la semana 1 sería peor que no enseñar ninguna. Al mirar atrás se
+  piden aparte, sin pisar la caché. Eso arregla de paso un despiste de los
+  martes: entre que Sleeper cambia de semana y se descargan las nuevas, las
+  líneas estadísticas eran de la jornada anterior.
+- **está cerrada entera** para la proyección. El marcador de ESPN dice qué
+  partidos se están jugando *hoy*, y de la semana 1 no sabe nada; sin esto, a
+  los jugadores de aquella jornada se les seguirían suponiendo puntos.
+
+Mientras se mira una semana pasada, el botón de seguir el partido se cambia por
+una barra que dice dónde estás y devuelve a hoy de un toque, y el "Semana N" se
+pone en verde: es la pista de que lo que se ve no es lo que está pasando.
+
 ## La probabilidad de ganar
 
 La barra del marcador **pinta esa probabilidad**, no el reparto de puntos. Es

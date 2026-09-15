@@ -10,12 +10,16 @@ import Foundation
 struct MatchupService {
     var api: SleeperAPI = .shared
 
-    func snapshot(for config: LeagueConfig) async throws -> MatchupSnapshot {
+    /// `week` en nil es la jornada que toca. Pasando una anterior se monta el
+    /// marcador de aquella semana, para poder mirar atrás.
+    func snapshot(for config: LeagueConfig, week semanaPedida: Int? = nil) async throws -> MatchupSnapshot {
         guard config.isComplete else { throw SleeperError.leagueNotSet }
         let leagueID = config.leagueID.trimmingCharacters(in: .whitespaces)
 
         let state = try await api.state()
-        let week = state.currentWeek
+        let jornadaEnCurso = state.currentWeek
+        let week = semanaPedida.map { max(1, $0) } ?? jornadaEnCurso
+        let esPasada = week < jornadaEnCurso
 
         // Las cuatro llamadas de liga no dependen entre sí: van a la vez.
         async let leagueTask = api.league(leagueID)
@@ -80,9 +84,36 @@ struct MatchupService {
         let catalog = await PlayerCatalog.shared.cached()
         // Las estadísticas de la jornada son un extra: si no están descargadas,
         // el marcador sale igual, solo que sin yardas.
-        let weekStats = await WeekStatsStore.shared.cached()
-        let projections = await ProjectionStore.shared.cached()
-        let gameStatus = await GameStatusStore.shared.cached()
+        //
+        // Pero tienen que ser **de esta** jornada. La caché guarda una sola, y
+        // enseñar las yardas de la semana 2 en el marcador de la semana 1 es
+        // peor que no enseñar ninguna. Pasa al mirar atrás y también los
+        // martes, en el rato entre que cambia la semana y se descargan.
+        let weekStats: WeekStats?
+        let projections: Projections?
+        if esPasada {
+            let temporada = state.season ?? league.season ?? ""
+            async let statsTask = WeekStats.fetch(season: temporada, week: week)
+            async let proyeccionesTask = Projections.fetch(season: temporada, week: week)
+            weekStats = await statsTask
+            projections = await proyeccionesTask
+        } else {
+            let guardadas = await WeekStatsStore.shared.cached()
+            let proyectadas = await ProjectionStore.shared.cached()
+            weekStats = guardadas?.week == week ? guardadas : nil
+            projections = proyectadas?.week == week ? proyectadas : nil
+        }
+        // Una jornada pasada está cerrada entera; el marcador de ESPN habla de
+        // los partidos de hoy y no sabe nada de aquella.
+        //
+        // Con un `if` y no con un `?:`: las ramas del ternario son autoclosures
+        // y ahí dentro no se puede esperar a nada.
+        let gameStatus: GameStatus?
+        if esPasada {
+            gameStatus = GameStatus.closed()
+        } else {
+            gameStatus = await GameStatusStore.shared.cached()
+        }
         let lineup = buildLineup(
             slots: league.starterSlots,
             mine: mineMatchup,
@@ -121,6 +152,7 @@ struct MatchupService {
             isStale: false,
             recentPlays: nil
         )
+        snapshot.liveWeek = jornadaEnCurso
         snapshot.projection = WinProbability.compute(for: snapshot)
         snapshot.scoringLabel = Self.scoringLabel(for: league.scoringSettings)
         snapshot.bench = bench

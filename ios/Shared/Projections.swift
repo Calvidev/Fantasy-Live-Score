@@ -42,6 +42,17 @@ struct Projections: Codable {
     }
 }
 
+extension Projections {
+    /// Una jornada suelta, sin pasar por la caché. Ver `WeekStats.fetch`.
+    static func fetch(season: String, week: Int) async -> Projections? {
+        guard
+            let crudas: [String: [String: Double]] = try? await SleeperAPI.shared
+                .get("/projections/nfl/regular/\(season)/\(week)")
+        else { return nil }
+        return Projections(byPlayer: crudas, season: season, week: week, savedAt: Date())
+    }
+}
+
 actor ProjectionStore {
     static let shared = ProjectionStore()
 

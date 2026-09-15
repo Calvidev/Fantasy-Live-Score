@@ -28,8 +28,21 @@ struct GameStatus: Codable {
     /// por versiones anteriores no lo traen.
     var remainingFraction: [String: Double]?
     var savedAt: Date
+    /// Jornada cerrada entera. Es lo que se usa al mirar una semana pasada:
+    /// no le queda nada por jugar a nadie, y el marcador de ESPN —que va de
+    /// los partidos de HOY— no dice nada de aquella.
+    var allFinished: Bool?
+
+    /// El estado de una jornada que ya terminó.
+    static func closed() -> GameStatus {
+        GameStatus(
+            finishedTeams: [], playingTeams: [],
+            remainingFraction: nil, savedAt: Date(), allFinished: true
+        )
+    }
 
     func hasFinished(_ team: String?) -> Bool {
+        if allFinished == true { return true }
         guard let team, !team.isEmpty else { return false }
         return finishedTeams.contains(GameStatus.normalize(team))
     }
@@ -37,6 +50,7 @@ struct GameStatus: Codable {
     /// Cuánto partido le queda por delante, de 1 a 0. Nil cuando no sabemos
     /// nada de ese equipo esta jornada: quien pregunta decide qué hacer.
     func remaining(for team: String?) -> Double? {
+        if allFinished == true { return 0 }
         guard let team, !team.isEmpty else { return nil }
         let clave = GameStatus.normalize(team)
         if finishedTeams.contains(clave) { return 0 }
@@ -199,7 +213,8 @@ actor GameStatusStore {
             finishedTeams: terminados,
             playingTeams: jugando,
             remainingFraction: restante,
-            savedAt: Date()
+            savedAt: Date(),
+            allFinished: nil
         )
     }
 

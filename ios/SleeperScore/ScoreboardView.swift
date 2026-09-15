@@ -69,12 +69,15 @@ struct LeaguePage: View {
 
     private var snapshot: MatchupSnapshot? { model.snapshot(for: league) }
     private var esLaActiva: Bool { league.id == model.book.activeID }
+    /// Mirando atrás: lo que se ve no es lo que está pasando ahora, así que
+    /// todo lo que hable del presente se calla.
+    private var mirandoAtras: Bool { model.isViewingPastWeek(league) }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 if let snapshot {
-                    ScoreCard(snapshot: snapshot)
+                    ScoreCard(snapshot: snapshot, league: league)
                     HStack(spacing: 8) {
                         NavigationLink {
                             StandingsView(league: league)
@@ -93,16 +96,24 @@ struct LeaguePage: View {
                         }
                         ShareScoreButton(snapshot: snapshot)
                     }
-                    LiveActivityButton(league: league)
+                    if mirandoAtras {
+                        PastWeekNote(week: snapshot.week) {
+                            Task { await model.pickWeek(nil, for: league) }
+                        }
+                    } else {
+                        LiveActivityButton(league: league)
+                    }
                     if !snapshot.plays.isEmpty {
                         RecentPlaysSection(plays: snapshot.plays)
                             .transition(.move(edge: .top).combined(with: .opacity))
                     }
-                    if esLaActiva, !model.news.isEmpty {
+                    if esLaActiva, !mirandoAtras, !model.news.isEmpty {
                         NewsCard(items: model.news)
                     }
                     if !snapshot.lineup.isEmpty {
                         LineupSection(rows: snapshot.lineup)
+                    } else if mirandoAtras {
+                        Hint(text: "De esa jornada no queda alineación guardada en Sleeper.")
                     } else {
                         Hint(text: "Cuando arranque la jornada aparecerá aquí la alineación titular con los puntos de cada jugador.")
                     }
@@ -130,8 +141,120 @@ struct LeaguePage: View {
         .scrollIndicators(.hidden)
         .refreshable {
             model.activate(league)
-            await model.refresh(showSpinner: false)
+            // Tirando hacia abajo se recarga lo que se está viendo, no otra
+            // cosa: si estás en una jornada pasada, esa.
+            if let vista = snapshot, mirandoAtras {
+                await model.pickWeek(vista.week, for: league)
+            } else {
+                await model.refresh(showSpinner: false)
+            }
         }
+    }
+}
+
+/// La barra que sustituye al botón de seguir cuando se mira una jornada
+/// cerrada: dice dónde estás y devuelve a hoy de un toque.
+struct PastWeekNote: View {
+    var week: Int
+    var onBack: () -> Void
+
+    var body: some View {
+        Button(action: onBack) {
+            HStack(spacing: 6) {
+                Image(systemName: "clock.arrow.circlepath")
+                Text("Viendo la semana \(week)")
+                Spacer(minLength: 4)
+                Text("Volver a hoy")
+                    .foregroundStyle(Theme.accent)
+            }
+            .font(.system(size: 13, weight: .medium))
+            .padding(.vertical, 11)
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
+            .background(Theme.pill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .foregroundStyle(Color.white.opacity(0.7))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Cabecera con selector de jornada
+
+/// Como la cabecera del widget, pero con el selector de semana: en el widget
+/// no se puede tocar nada, así que allí sigue siendo texto y ya está.
+struct ScoreCardHeader: View {
+    var snapshot: MatchupSnapshot
+    var league: LeagueConfig
+
+    @EnvironmentObject private var model: ScoreboardModel
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "trophy.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.accent)
+            Text(snapshot.leagueName)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+            WeekPicker(
+                week: snapshot.week,
+                liveWeek: model.liveWeek(for: league) ?? snapshot.week,
+                isPast: model.isViewingPastWeek(league)
+            ) { elegida in
+                Task { await model.pickWeek(elegida, for: league) }
+            }
+        }
+    }
+}
+
+/// "Semana 1 ⌄". Al desplegarlo salen todas las jornadas jugadas.
+struct WeekPicker: View {
+    var week: Int
+    var liveWeek: Int
+    var isPast: Bool
+    var onPick: (Int) -> Void
+
+    /// De la más reciente a la primera: casi siempre se quiere la de al lado.
+    private var semanas: [Int] {
+        Array((1...max(1, liveWeek)).reversed())
+    }
+
+    var body: some View {
+        Menu {
+            ForEach(semanas, id: \.self) { semana in
+                Button {
+                    onPick(semana)
+                } label: {
+                    if semana == week {
+                        Label(titulo(semana), systemImage: "checkmark")
+                    } else {
+                        Text(titulo(semana))
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text("Semana \(week)")
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .bold))
+            }
+            .font(.system(size: 11))
+            // En verde cuando NO estás en la jornada de hoy: es la única
+            // pista de que lo que se ve no es lo que está pasando ahora.
+            .foregroundStyle(isPast ? Theme.accent : Color.white.opacity(0.6))
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(Theme.pill, in: Capsule())
+        }
+        .accessibilityLabel("Jornada \(week). Tocar para cambiar de semana.")
+    }
+
+    private func titulo(_ semana: Int) -> String {
+        semana == liveWeek
+            ? String(localized: "Semana \(semana) · en curso")
+            : String(localized: "Semana \(semana)")
     }
 }
 
@@ -139,10 +262,11 @@ struct LeaguePage: View {
 
 struct ScoreCard: View {
     var snapshot: MatchupSnapshot
+    var league: LeagueConfig
 
     var body: some View {
         VStack(spacing: 14) {
-            LeagueHeader(leagueName: snapshot.leagueName, week: snapshot.week)
+            ScoreCardHeader(snapshot: snapshot, league: league)
 
             HStack(alignment: .top, spacing: 10) {
                 TeamColumn(

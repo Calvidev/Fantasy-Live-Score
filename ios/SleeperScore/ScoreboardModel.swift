@@ -24,6 +24,13 @@ final class ScoreboardModel: ObservableObject {
     /// Identificador de la última anotación tuya. Al cambiar, la pantalla
     /// lanza la celebración.
     @Published private(set) var celebrationID: String?
+    /// Marcadores de jornadas pasadas que se están mirando, por liga.
+    ///
+    /// Aparte de los de verdad a propósito: mirar cómo quedó la semana 1 no
+    /// debe tocar lo que ven el widget y la Live Activity, que siguen con la
+    /// jornada de hoy. Tampoco pasan por `apply`, así que una semana cerrada
+    /// no dispara anotaciones ni avisos.
+    @Published private(set) var weekViews: [String: MatchupSnapshot] = [:]
 
     private let service = MatchupService()
     private let live = LiveActivityController.shared
@@ -49,8 +56,44 @@ final class ScoreboardModel: ObservableObject {
     }
 
     /// El marcador de una liga concreta, para las páginas que no están activas.
+    /// Si se está mirando una jornada pasada, la que manda es esa.
     func snapshot(for league: LeagueConfig) -> MatchupSnapshot? {
-        snapshots[league.id]
+        weekViews[league.id] ?? snapshots[league.id]
+    }
+
+    /// Se está mirando una jornada pasada en esta liga.
+    func isViewingPastWeek(_ league: LeagueConfig) -> Bool {
+        weekViews[league.id] != nil
+    }
+
+    /// Hasta qué jornada llega el selector: la que Sleeper dé por buena.
+    func liveWeek(for league: LeagueConfig) -> Int? {
+        let vivo = snapshots[league.id]
+        return vivo?.liveWeek ?? vivo?.week
+    }
+
+    /// Cambia de jornada. `nil` vuelve a la de hoy.
+    ///
+    /// No pasa por `apply` a propósito: una jornada cerrada no anota nada, y
+    /// compararla con el marcador de hoy fabricaría una anotación por cada
+    /// jugador. Tampoco se guarda en el grupo de apps: el widget y la Live
+    /// Activity siguen con lo de hoy, que es lo que quiere quien los mira.
+    func pickWeek(_ week: Int?, for league: LeagueConfig) async {
+        let actual = liveWeek(for: league)
+        guard let week, week != actual else {
+            weekViews[league.id] = nil
+            lastError = nil
+            return
+        }
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            weekViews[league.id] = try await service.snapshot(for: league, week: week)
+            lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+            weekViews[league.id] = nil
+        }
     }
 
     var needsSetup: Bool { book.isEmpty }
