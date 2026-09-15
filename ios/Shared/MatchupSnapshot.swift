@@ -110,11 +110,24 @@ struct MatchupSnapshot: Codable, Hashable {
     /// anterior no lo trae.
     var liveWeek: Int?
 
+    /// Hasta dónde llega el calendario de la NFL: 18 jornadas de temporada
+    /// regular. Sleeper monta sus enfrentamientos dentro de ese rango.
+    static let lastWeek = 18
+
     /// Se está mirando una jornada que ya terminó.
     var isPastWeek: Bool {
         guard let liveWeek else { return false }
         return week < liveWeek
     }
+
+    /// Se está mirando una jornada que aún no se ha jugado.
+    var isFutureWeek: Bool {
+        guard let liveWeek else { return false }
+        return week > liveWeek
+    }
+
+    /// Ni pasada ni futura: lo que está ocurriendo.
+    var isCurrentWeek: Bool { !isPastWeek && !isFutureWeek }
 
     /// Las anotaciones, sin tener que desenvolver el opcional en cada vista.
     var plays: [ScoringPlay] { recentPlays ?? [] }

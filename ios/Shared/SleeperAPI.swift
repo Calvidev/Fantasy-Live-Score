@@ -8,6 +8,7 @@ enum SleeperError: LocalizedError {
     case network(String)
     case decoding(String)
     case rosterNotFound(Int)
+    case weekNotScheduled(Int)
     case leagueNotSet
     case userNotFound(String)
 
@@ -23,6 +24,8 @@ enum SleeperError: LocalizedError {
             return String(localized: "Sleeper devolvió algo inesperado: \(detail)")
         case let .rosterNotFound(rosterID):
             return String(localized: "El equipo \(rosterID) no juega esta jornada en esa liga.")
+        case let .weekNotScheduled(week):
+            return String(localized: "Sleeper todavía no ha puesto los enfrentamientos de la semana \(week).")
         case .leagueNotSet:
             return String(localized: "Todavía no has elegido liga y equipo.")
         case let .userNotFound(username):

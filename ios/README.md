@@ -252,8 +252,21 @@ preparado para recibir un `pushType`.
 
 ## Cambiar de jornada
 
-El "Semana N" de la cabecera es un menú: se toca y salen todas las jornadas
-jugadas, de la más reciente a la primera. La de hoy va marcada "en curso".
+El "Semana N" de la cabecera es un menú con la **temporada entera**, en dos
+grupos: *Jugadas* (de la más reciente hacia atrás, que es donde se mira casi
+siempre) y *Por jugar*. La de hoy va marcada "en curso".
+
+Las futuras importan más de lo que parece: en la semana 1 el menú tenía una sola
+línea y no servía de nada. Sleeper tiene el calendario hecho desde el draft, así
+que se puede ver **contra quién juegas la semana 7 y cómo pinta**: los puntos
+están a cero, pero las proyecciones de esa jornada sí existen, y con ellas salen
+el total esperado de cada lado y la probabilidad. De una jornada sin jugar no se
+piden estadísticas —no hay yardas que enseñar— y no se le supone nada terminado
+a nadie, así que a cada jugador le queda su proyección entera.
+
+Los playoffs no aparecen emparejados hasta que se cierra la clasificación; si se
+pide una jornada que Sleeper aún no ha emparejado, lo dice con esas palabras en
+vez de con un "no encuentro tu equipo".
 
 **Qué jornada es la de hoy no lo decide la app**: lo dice Sleeper en
 `/state/nfl` (`display_week`), y la app se limita a seguirlo. Sleeper pasa a la
@@ -279,9 +292,10 @@ Mirar atrás es solo mirar. Una jornada pasada:
   partidos se están jugando *hoy*, y de la semana 1 no sabe nada; sin esto, a
   los jugadores de aquella jornada se les seguirían suponiendo puntos.
 
-Mientras se mira una semana pasada, el botón de seguir el partido se cambia por
-una barra que dice dónde estás y devuelve a hoy de un toque, y el "Semana N" se
-pone en verde: es la pista de que lo que se ve no es lo que está pasando.
+Mientras se mira otra semana, el botón de seguir el partido se cambia por una
+barra que dice dónde estás —"Viendo la semana 1" o "Vista previa de la semana
+7"— y devuelve a hoy de un toque, y el "Semana N" se pone en verde: es la pista
+de que lo que se ve no es lo que está pasando.
 
 ## La probabilidad de ganar
 

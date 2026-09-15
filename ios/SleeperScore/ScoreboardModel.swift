@@ -61,8 +61,8 @@ final class ScoreboardModel: ObservableObject {
         weekViews[league.id] ?? snapshots[league.id]
     }
 
-    /// Se está mirando una jornada pasada en esta liga.
-    func isViewingPastWeek(_ league: LeagueConfig) -> Bool {
+    /// Se está mirando una jornada que no es la de hoy (antes o después).
+    func isViewingOtherWeek(_ league: LeagueConfig) -> Bool {
         weekViews[league.id] != nil
     }
 

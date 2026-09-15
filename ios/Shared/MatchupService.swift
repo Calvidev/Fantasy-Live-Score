@@ -18,8 +18,9 @@ struct MatchupService {
 
         let state = try await api.state()
         let jornadaEnCurso = state.currentWeek
-        let week = semanaPedida.map { max(1, $0) } ?? jornadaEnCurso
+        let week = semanaPedida.map { min(MatchupSnapshot.lastWeek, max(1, $0)) } ?? jornadaEnCurso
         let esPasada = week < jornadaEnCurso
+        let esFutura = week > jornadaEnCurso
 
         // Las cuatro llamadas de liga no dependen entre sí: van a la vez.
         async let leagueTask = api.league(leagueID)
@@ -33,7 +34,12 @@ struct MatchupService {
         let matchups = try await matchupsTask
 
         guard let mineMatchup = matchups.first(where: { $0.rosterID == config.rosterID }) else {
-            throw SleeperError.rosterNotFound(config.rosterID)
+            // Una jornada que Sleeper aún no ha emparejado (los playoffs, hasta
+            // que se cierra la clasificación) devuelve la lista vacía. No es lo
+            // mismo que no encontrar tu equipo, y se dice distinto.
+            throw matchups.isEmpty
+                ? SleeperError.weekNotScheduled(week)
+                : SleeperError.rosterNotFound(config.rosterID)
         }
 
         // El rival es el otro equipo con el mismo `matchup_id`. En semana de
@@ -97,6 +103,14 @@ struct MatchupService {
             async let proyeccionesTask = Projections.fetch(season: temporada, week: week)
             weekStats = await statsTask
             projections = await proyeccionesTask
+        } else if esFutura {
+            // De una jornada que no se ha jugado no hay yardas que enseñar,
+            // solo lo que se espera de cada uno. Es justo lo que se va a mirar:
+            // contra quién juego la semana 5 y cómo pinta.
+            weekStats = nil
+            projections = await Projections.fetch(
+                season: state.season ?? league.season ?? "", week: week
+            )
         } else {
             let guardadas = await WeekStatsStore.shared.cached()
             let proyectadas = await ProjectionStore.shared.cached()
@@ -111,6 +125,10 @@ struct MatchupService {
         let gameStatus: GameStatus?
         if esPasada {
             gameStatus = GameStatus.closed()
+        } else if esFutura {
+            // Nada ha empezado: a cada jugador le queda su proyección entera,
+            // que es lo que sale al no saber nada del partido.
+            gameStatus = nil
         } else {
             gameStatus = await GameStatusStore.shared.cached()
         }
