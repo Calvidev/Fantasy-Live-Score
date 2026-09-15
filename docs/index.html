@@ -1,37 +1,101 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fantasy Live Score</title>
+<meta name="description" content="One iPhone app for all your fantasy football teams, across platforms, on the Lock Screen.">
 <style>
-  :root { color-scheme: light dark; --fondo:#f6f6f7; --tarjeta:#fff; --texto:#16161a; --tenue:#6b6b73; --acento:#2f9e6e; --borde:#e3e3e7; }
+  :root { color-scheme: light dark; --bg:#f7f7f8; --card:#fff; --ink:#15151a; --dim:#63636d; --accent:#2f9e6e; --line:#e4e4e8; }
   @media (prefers-color-scheme: dark) {
-    :root { --fondo:#0e0e10; --tarjeta:#1c1c1e; --texto:#f4f4f6; --tenue:#9a9aa2; --acento:#5fd6a0; --borde:#2a2a2b; }
+    :root { --bg:#0d0d0f; --card:#17171a; --ink:#f3f3f6; --dim:#9b9ba4; --accent:#5fd6a0; --line:#27272b; }
   }
   * { box-sizing: border-box; }
-  body { margin:0; min-height:100vh; display:grid; place-items:center; padding:24px;
-         background:var(--fondo); color:var(--texto);
-         font:16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
-  .tarjeta { width:100%; max-width:440px; background:var(--tarjeta); border:1px solid var(--borde);
-             border-radius:18px; padding:28px 24px; }
-  h1 { font-size:22px; margin:0 0 4px; }
-  p { color:var(--tenue); font-size:14px; margin:0 0 20px; }
-  .ok { color:var(--acento); font-weight:600; }
-  ul { margin:0; padding-left:18px; font-size:14px; }
-  li { margin-bottom:6px; }
-  a { color:var(--acento); }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width:680px; margin:0 auto; padding:56px 20px 72px; }
+  header { margin-bottom:44px; }
+  h1 { font-size:34px; line-height:1.15; margin:0 0 10px; letter-spacing:-.02em; }
+  .tag { color:var(--dim); font-size:17px; margin:0; }
+  h2 { font-size:15px; text-transform:uppercase; letter-spacing:.07em; color:var(--dim);
+       margin:40px 0 14px; font-weight:600; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px;
+          padding:18px 20px; margin-bottom:12px; }
+  .card h3 { margin:0 0 4px; font-size:16px; }
+  .card p { margin:0; color:var(--dim); font-size:14.5px; }
+  table { width:100%; border-collapse:collapse; font-size:14.5px; }
+  th, td { text-align:left; padding:9px 0; border-bottom:1px solid var(--line); }
+  th { color:var(--dim); font-weight:600; }
+  td.state { text-align:right; color:var(--dim); }
+  .live { color:var(--accent); font-weight:600; }
+  footer { margin-top:48px; padding-top:22px; border-top:1px solid var(--line);
+           color:var(--dim); font-size:13.5px; }
+  a { color:var(--accent); }
+  .note { font-size:13.5px; color:var(--dim); margin-top:10px; }
 </style>
 </head>
 <body>
-  <div class="tarjeta">
+<div class="wrap">
+
+  <header>
     <h1>Fantasy Live Score</h1>
-    <p>Tu marcador de fantasy en la pantalla de bloqueo del iPhone.</p>
-    <p class="ok">✓ GitHub Pages está funcionando.</p>
-    <ul>
-      <li><a href="yahoo.html">yahoo.html</a> — la vuelta del login de Yahoo</li>
-      <li><a href="https://github.com/Calvidev/Fantasy-Live-Score">Código en GitHub</a></li>
-    </ul>
+    <p class="tag">All your fantasy football teams in one place — on the iPhone Lock Screen, across platforms.</p>
+  </header>
+
+  <p>Plenty of people play fantasy football in more than one league, on more
+  than one platform. Today that means one app per platform, and no single place
+  to see how the weekend is actually going.</p>
+
+  <p>Fantasy Live Score is a read-only companion app that puts every team you
+  manage side by side: live scores, projections, win probability, and your
+  starting lineup — in the app, in Home Screen widgets, and in a Live Activity
+  on the Lock Screen and Dynamic Island.</p>
+
+  <h2>What it does</h2>
+
+  <div class="card">
+    <h3>Every league, one app</h3>
+    <p>Swipe between leagues. Each one keeps its own score, its own widget and
+    its own Lock Screen activity.</p>
   </div>
+  <div class="card">
+    <h3>Live scoring and win probability</h3>
+    <p>Scores update through the week, with a projected final score and the odds
+    of winning your matchup.</p>
+  </div>
+  <div class="card">
+    <h3>Scoring alerts</h3>
+    <p>A notification when one of your starters scores — bundled and rate-limited,
+    so a Sunday does not turn into twenty buzzes.</p>
+  </div>
+  <div class="card">
+    <h3>Any week of the season</h3>
+    <p>Look back at a finished week or ahead at who you play next.</p>
+  </div>
+
+  <h2>Platforms</h2>
+
+  <table>
+    <tr><th>Platform</th><th class="state">Status</th></tr>
+    <tr><td>Sleeper</td><td class="state live">Live</td></tr>
+    <tr><td>Yahoo Fantasy</td><td class="state">Sign-in built, pending API access</td></tr>
+    <tr><td>ESPN Fantasy</td><td class="state">Planned</td></tr>
+    <tr><td>NFL.com</td><td class="state">Planned</td></tr>
+  </table>
+
+  <p class="note">The app only ever reads. It does not set lineups, make trades,
+  add or drop players, or change anything in your league.</p>
+
+  <h2>Status</h2>
+
+  <p>In development, tested on device, not yet released on the App Store.
+  Built by an independent developer.</p>
+
+  <footer>
+    Source: <a href="https://github.com/Calvidev/Fantasy-Live-Score">github.com/Calvidev/Fantasy-Live-Score</a><br>
+    Not affiliated with, endorsed by, or sponsored by the NFL, Sleeper, Yahoo, or ESPN.
+  </footer>
+
+</div>
 </body>
 </html>
