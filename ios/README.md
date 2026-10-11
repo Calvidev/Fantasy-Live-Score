@@ -216,6 +216,32 @@ puntos acumulados de cada titular, y `ScoringDetector` compara la lectura nueva
 con la anterior. Diferencias menores de 0,1 puntos se ignoran, que son las
 correcciones de estadísticas.
 
+### En el Apple Watch
+
+Sale sola. Desde iOS 18 el sistema lleva las Live Activities del iPhone al
+**Smart Stack del reloj**, sin app de watchOS ni `WatchConnectivity` de por
+medio. Lo único que hay que hacer es pedirlo —`supplementalActivityFamily([.small])`—
+y dar una vista para ese tamaño; sin ella el sistema improvisa una a partir de
+la Dynamic Island y sale apretada.
+
+La vista del reloj es distinta de la del teléfono por dos motivos, no por
+gusto:
+
+- **No hay fotos.** La vista de bloqueo lee retratos y escudos de archivos que
+  la app deja en el grupo de apps, y el reloj es otro aparato: no comparte ese
+  disco. Cualquier imagen saldría en blanco, así que es todo texto.
+- **No hay sitio, ni tiempo.** La tarjeta se mira de reojo con la muñeca
+  levantada un segundo. Liga, marcador grande, barra, y la última jugada si
+  cabe.
+
+Por eso el objetivo mínimo del proyecto es **iOS 18**: `activityFamily` no
+existe antes. No cuesta usuarios — iOS 18 corre en exactamente los mismos
+iPhone que iOS 17, del XS/XR en adelante.
+
+Lo que **no** hay es app de reloj ni complicación en la esfera: eso sí
+necesitaría un objetivo de watchOS y pasar los datos por `WatchConnectivity`,
+porque el grupo de apps no cruza de aparato.
+
 ### Varias ligas a la vez
 
 **Una Live Activity por liga.** iOS admite varias del mismo tipo: el botón está

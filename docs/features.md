@@ -20,7 +20,7 @@ importante, si **se puede hacer de verdad** con lo que hay.
 | 11. Historial de la temporada | ✅ Hecho |
 | 12. Push real | ⬜ Necesita los 99 USD y servidor |
 | 13. Un widget por liga | ✅ Hecho |
-| 14. Apple Watch | ⬜ Pendiente |
+| 14. Apple Watch | 🟡 Live Activity en el Smart Stack, con vista propia. Falta complicación en la esfera |
 
 Añadido fuera de la lista original: ficha de jugador, parte de lesiones con
 aviso, avisos con la app cerrada, varias ligas, y traducción al inglés.

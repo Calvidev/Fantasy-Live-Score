@@ -1,6 +1,14 @@
 //  MatchupLiveActivity.swift
-//  La Live Activity: marcador en la pantalla de bloqueo y en la Dynamic Island,
-//  con la última anotación —foto, nombre y puntos— destacada.
+//  La Live Activity: marcador en la pantalla de bloqueo, en la Dynamic Island
+//  y en el Apple Watch, con la última anotación —foto, nombre y puntos—
+//  destacada.
+//
+//  Lo del reloj no necesita app de watchOS: desde iOS 18 el sistema lleva solo
+//  las Live Activities del iPhone al Smart Stack del reloj. Lo que sí hace
+//  falta es pedirlo (`supplementalActivityFamily`) y dar una vista para ese
+//  tamaño; sin ella el sistema improvisa una a partir de la Dynamic Island, y
+//  la de aquí —cuatro filas pensadas para 160 puntos de alto— sale apretada y
+//  con letra ilegible en una pantalla de 45 mm.
 
 import ActivityKit
 import SwiftUI
@@ -72,6 +80,72 @@ struct MatchupLiveActivity: Widget {
             }
             .keylineTint(Theme.accent)
         }
+        // Sin esto, la actividad no sale en el Smart Stack del reloj.
+        .supplementalActivityFamily([.small])
+    }
+}
+
+// MARK: - Apple Watch
+
+/// La misma actividad, en el Smart Stack del reloj.
+///
+/// Dos cosas mandan aquí y ninguna aplica en el teléfono:
+///
+/// **No hay fotos.** La vista de bloqueo lee los retratos y los escudos de
+/// archivos que la app deja en el grupo de apps, y el reloj es otro aparato: no
+/// comparte ese disco. Cualquier imagen saldría en blanco, así que esto es
+/// todo texto a propósito.
+///
+/// **No hay sitio.** La tarjeta del Smart Stack da una fracción de lo que da la
+/// pantalla de bloqueo y se mira de reojo, con la muñeca levantada un segundo.
+/// Así que solo lo imprescindible: quién va ganando y por cuánto.
+struct WatchLiveView: View {
+    var attributes: MatchupActivityAttributes
+    var state: MatchupActivityAttributes.ContentState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 4) {
+                Text(attributes.leagueName)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.65))
+                    .lineLimit(1)
+                Spacer(minLength: 2)
+                if let probabilidad = state.winChanceText {
+                    Text(probabilidad)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(state.share >= 0.5 ? Theme.accent : Color.red)
+                }
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(state.myPoints.fantasyPoints)
+                    .foregroundStyle(Theme.accent)
+                    .contentTransition(.numericText(value: state.myPoints))
+                Text("–")
+                    .foregroundStyle(.white.opacity(0.35))
+                Text(state.opponentPoints.fantasyPoints)
+                    .foregroundStyle(.white)
+                    .contentTransition(.numericText(value: state.opponentPoints))
+            }
+            .font(.system(size: 22, weight: .semibold, design: .rounded))
+            .monospacedDigit()
+            .minimumScaleFactor(0.7)
+            .lineLimit(1)
+
+            ScoreBar(share: state.share, height: 4)
+
+            // La última jugada solo si cabe: es lo primero que sobra.
+            if let play = state.lastPlay {
+                Text("\(play.name) \(play.delta.signedFantasyPoints)")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(play.isMine ? Theme.accent : .white.opacity(0.6))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
     }
 }
 
@@ -81,9 +155,22 @@ struct LockScreenLiveView: View {
     var attributes: MatchupActivityAttributes
     var state: MatchupActivityAttributes.ContentState
 
+    /// `.small` es el reloj. El sistema pinta la misma vista en los dos
+    /// sitios, así que hay que preguntar en cuál estamos.
+    @Environment(\.activityFamily) private var family
+
+    var body: some View {
+        switch family {
+        case .small:
+            WatchLiveView(attributes: attributes, state: state)
+        default:
+            telefono
+        }
+    }
+
     // La pantalla de bloqueo da unos 160 puntos de alto y recorta lo que
     // sobre, así que aquí se cuenta cada punto: cuatro filas y ninguna más.
-    var body: some View {
+    private var telefono: some View {
         VStack(spacing: 7) {
             cabecera
             marcador

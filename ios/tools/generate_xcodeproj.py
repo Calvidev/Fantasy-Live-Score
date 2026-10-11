@@ -21,7 +21,12 @@ PROJECT_NAME = "SleeperScore"
 APP_TARGET = "SleeperScore"
 WIDGET_TARGET = "ScoreWidgetExtension"
 BUNDLE_ID = "dev.calvi.sleeperscore"
-DEPLOYMENT_TARGET = "17.0"
+# iOS 18 por las Live Activities en el Apple Watch
+# (`supplementalActivityFamily` y `activityFamily` son de iOS 18).
+#
+# No cuesta usuarios: iOS 18 corre en exactamente los mismos iPhone que iOS 17
+# —del XS/XR en adelante—, así que subirlo no deja a nadie fuera.
+DEPLOYMENT_TARGET = "18.0"
 OBJECT_VERSION = 56  # Xcode 14 en adelante
 
 SHARED_SOURCES = [
