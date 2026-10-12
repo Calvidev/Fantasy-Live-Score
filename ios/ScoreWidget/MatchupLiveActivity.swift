@@ -81,7 +81,8 @@ struct MatchupLiveActivity: Widget {
             .keylineTint(Theme.accent)
         }
         // Sin esto, la actividad no sale en el Smart Stack del reloj.
-        .supplementalActivityFamily([.small])
+        // En plural: el modificador recibe la lista de tamaños.
+        .supplementalActivityFamilies([.small])
     }
 }
 
@@ -139,7 +140,7 @@ struct WatchLiveView: View {
             if let play = state.lastPlay {
                 Text("\(play.name) \(play.delta.signedFantasyPoints)")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(play.isMine ? Theme.accent : .white.opacity(0.6))
+                    .foregroundStyle(play.isMine ? Theme.accent : Color.white.opacity(0.6))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
